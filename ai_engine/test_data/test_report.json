@@ -1,0 +1,326 @@
+{
+  "file_name": "test_capture.pcap",
+  "overall_risk_score": 79,
+  "risk_level": "High",
+  "ai_confidence_score": 0.94,
+  "summary": "Overall risk is high: 10 weaknesses found (4 high or critical), and the traffic looks like VoIP and Video Streaming.",
+  "executive_report": {
+    "headline": "The VPN is not safe to use in its current setup (risk score 79/100).",
+    "key_points": [
+      "The encryption in sessions 1 and 2 is weaker than current standards.",
+      "The integrity check in session 1 is weak, so data could be changed without anyone noticing.",
+      "The key exchange in session 1 is too weak and could let attackers work out the keys.",
+      "The VPN protocol setup in session 1 is old and has known weaknesses.",
+      "The VPN login in session 1 uses a shared password instead of certificates."
+    ],
+    "business_impact": "If these weaknesses are not fixed, company data could be read or changed, attackers could join the VPN and recorded traffic could be read later. Even though the traffic is encrypted, an observer can still tell that it carries VoIP and Video Streaming traffic from packet sizes and timing.",
+    "top_actions": [
+      "Replace 3DES with AES-256-GCM.",
+      "Use SHA-256 or stronger (for example HMAC-SHA-256).",
+      "Use DH group 14, 19 or 20.",
+      "Use IKEv2, or Main Mode if IKEv1 cannot be removed yet.",
+      "Migrate to IKEv2."
+    ]
+  },
+  "technical_report": {
+    "protocol_identification": "Session 1: IKEv1 Aggressive Mode, ESP Tunnel Mode over IPv4 | Session 2: IKEv2 Main Mode, ESP Tunnel Mode over IPv4",
+    "cipher_suite_analysis": "Session 1: 3DES + HMAC-MD5, hash MD5, DH group 2 | Session 2: AES-256-CBC + HMAC-SHA256, hash SHA256, DH group 14",
+    "sa_analysis": "Session 1: lifetime 86400 s, replay protection off, PFS off, NAT-T off | Session 2: lifetime 100000 s, replay protection on, PFS on, NAT-T off",
+    "metadata_exposure": "Session 1: peer identity is sent in clear and visible to eavesdroppers | Traffic type can still be inferred from packet sizes and timing even though ESP is encrypted",
+    "compliance_notes": "Session 1: fails NIST SP 800-131A and SP 800-77r1 guidance (Encryption, Hash, KeyExchange, Protocol) | Session 2: meets the checked NIST guidance"
+  },
+  "traffic_analysis": [
+    {
+      "session_id": 1,
+      "predicted_traffic_type": "VoIP",
+      "traffic_confidence": 1.0,
+      "top_predictions": [
+        {
+          "type": "VoIP",
+          "probability": 1.0
+        },
+        {
+          "type": "Email",
+          "probability": 0.0
+        },
+        {
+          "type": "File Transfer",
+          "probability": 0.0
+        }
+      ],
+      "metadata_inference": "Small, regular packets (about 160 bytes) about 20 ms apart with balanced traffic (50% upstream), typical of a voice call."
+    },
+    {
+      "session_id": 2,
+      "predicted_traffic_type": "Video Streaming",
+      "traffic_confidence": 0.99,
+      "top_predictions": [
+        {
+          "type": "Video Streaming",
+          "probability": 0.99
+        },
+        {
+          "type": "Email",
+          "probability": 0.01
+        },
+        {
+          "type": "Web Browsing",
+          "probability": 0.01
+        }
+      ],
+      "metadata_inference": "Large packets (about 1200 bytes) about 8 ms apart, almost all downstream (5% upstream), typical of video streaming."
+    }
+  ],
+  "threat_matrix": [
+    {
+      "threat": "Downgrade / weak cipher attack",
+      "category": "Encryption",
+      "likelihood": "High",
+      "impact": "High",
+      "related_findings": [
+        "F001",
+        "F009"
+      ]
+    },
+    {
+      "threat": "Integrity forgery / collision attack",
+      "category": "Hash",
+      "likelihood": "High",
+      "impact": "High",
+      "related_findings": [
+        "F002"
+      ]
+    },
+    {
+      "threat": "Key recovery via weak Diffie-Hellman",
+      "category": "KeyExchange",
+      "likelihood": "High",
+      "impact": "High",
+      "related_findings": [
+        "F003"
+      ]
+    },
+    {
+      "threat": "Legacy IKE protocol attack",
+      "category": "Protocol",
+      "likelihood": "High",
+      "impact": "High",
+      "related_findings": [
+        "F004",
+        "F005"
+      ]
+    },
+    {
+      "threat": "Pre-shared key brute force",
+      "category": "Authentication",
+      "likelihood": "Medium",
+      "impact": "High",
+      "related_findings": [
+        "F006"
+      ]
+    },
+    {
+      "threat": "Retroactive decryption without forward secrecy",
+      "category": "PFS",
+      "likelihood": "Medium",
+      "impact": "High",
+      "related_findings": [
+        "F007"
+      ]
+    },
+    {
+      "threat": "Identity and metadata leakage",
+      "category": "MetadataExposure",
+      "likelihood": "Medium",
+      "impact": "Medium",
+      "related_findings": [
+        "F008"
+      ]
+    },
+    {
+      "threat": "Long key exposure window",
+      "category": "Lifetime",
+      "likelihood": "Low",
+      "impact": "Medium",
+      "related_findings": [
+        "F010"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "F001",
+      "session_id": 1,
+      "category": "Encryption",
+      "issue": "3DES is deprecated",
+      "severity": "High",
+      "risk_score": 75,
+      "explanation": "3DES uses a small 64-bit block, so an attacker who records enough traffic can recover data (the Sweet32 attack).",
+      "recommendation": "Replace 3DES with AES-256-GCM.",
+      "reference": "NIST SP 800-131A"
+    },
+    {
+      "finding_id": "F002",
+      "session_id": 1,
+      "category": "Hash",
+      "issue": "MD5 is cryptographically broken",
+      "severity": "High",
+      "risk_score": 75,
+      "explanation": "MD5 is a broken hash; attackers can create collisions and forge data.",
+      "recommendation": "Use SHA-256 or stronger (for example HMAC-SHA-256).",
+      "reference": "RFC 8221"
+    },
+    {
+      "finding_id": "F003",
+      "session_id": 1,
+      "category": "KeyExchange",
+      "issue": "DH group 2 (1024-bit) is too weak",
+      "severity": "High",
+      "risk_score": 75,
+      "explanation": "DH groups 1 and 2 use 768-bit and 1024-bit keys, which are too short and open to the Logjam attack.",
+      "recommendation": "Use DH group 14, 19 or 20.",
+      "reference": "RFC 8247"
+    },
+    {
+      "finding_id": "F004",
+      "session_id": 1,
+      "category": "Protocol",
+      "issue": "IKEv1 is deprecated",
+      "severity": "Medium",
+      "risk_score": 50,
+      "explanation": "IKEv1 is a legacy protocol with known weaknesses and is no longer recommended.",
+      "recommendation": "Migrate to IKEv2.",
+      "reference": "RFC 8247"
+    },
+    {
+      "finding_id": "F005",
+      "session_id": 1,
+      "category": "Protocol",
+      "issue": "IKEv1 Aggressive Mode exposes the PSK hash",
+      "severity": "High",
+      "risk_score": 75,
+      "explanation": "Aggressive Mode sends the peer identity and a hash of the pre-shared key without protection. An attacker can capture it and crack the key offline.",
+      "recommendation": "Use IKEv2, or Main Mode if IKEv1 cannot be removed yet.",
+      "reference": "NIST SP 800-77r1"
+    },
+    {
+      "finding_id": "F006",
+      "session_id": 1,
+      "category": "Authentication",
+      "issue": "Pre-Shared Key is weaker than certificate authentication",
+      "severity": "Medium",
+      "risk_score": 50,
+      "explanation": "A pre-shared key can be guessed if it is weak, and the same key is often shared across many devices.",
+      "recommendation": "Use certificate-based authentication.",
+      "reference": "NIST SP 800-77r1"
+    },
+    {
+      "finding_id": "F007",
+      "session_id": 1,
+      "category": "PFS",
+      "issue": "Perfect Forward Secrecy is disabled",
+      "severity": "Medium",
+      "risk_score": 50,
+      "explanation": "Without Perfect Forward Secrecy, anyone who later steals a key can decrypt old recorded traffic.",
+      "recommendation": "Enable PFS with DH group 19 or 20.",
+      "reference": "NIST SP 800-77r1"
+    },
+    {
+      "finding_id": "F008",
+      "session_id": 1,
+      "category": "MetadataExposure",
+      "issue": "Identity is sent in clear",
+      "severity": "Medium",
+      "risk_score": 50,
+      "explanation": "The peer identity is sent unencrypted, so eavesdroppers can see who is connecting.",
+      "recommendation": "Use IKEv2, which encrypts peer identities.",
+      "reference": "RFC 7296"
+    },
+    {
+      "finding_id": "F009",
+      "session_id": 2,
+      "category": "Encryption",
+      "issue": "AES-256-CBC used instead of an AEAD cipher like AES-GCM",
+      "severity": "Low",
+      "risk_score": 25,
+      "explanation": "CBC mode still keeps data secret, but it has no built-in integrity check and depends on a separate hash.",
+      "recommendation": "Prefer AES-GCM, which encrypts and protects integrity in one step.",
+      "reference": "RFC 8221"
+    },
+    {
+      "finding_id": "F010",
+      "session_id": 2,
+      "category": "Lifetime",
+      "issue": "SA lifetime is over 86400 seconds",
+      "severity": "Low",
+      "risk_score": 25,
+      "explanation": "The key lifetime is outside the normal range, so a key is used for too long or is changed too often.",
+      "recommendation": "Use 28800 seconds for the IKE SA and 3600 seconds for the IPsec SA.",
+      "reference": "NIST SP 800-77r1"
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": 1,
+      "src_ip": "10.0.0.1",
+      "dst_ip": "10.0.0.2",
+      "ipsec_protocol": "ESP",
+      "protocol": "IKEv1",
+      "exchange_mode": "Aggressive",
+      "ipsec_mode": "Tunnel",
+      "encryption": "3DES",
+      "authentication": "HMAC-MD5",
+      "hash": "MD5",
+      "dh_group": 2,
+      "key_exchange": "Diffie-Hellman",
+      "auth_method": "Pre-Shared Key",
+      "lifetime_seconds": 86400,
+      "pfs_enabled": false,
+      "replay_protection": false,
+      "nat_traversal": false,
+      "identity_exposed": true,
+      "confidence": 0.9,
+      "traffic_features": {
+        "packet_count": 110,
+        "avg_packet_size": 160,
+        "min_packet_size": 96,
+        "max_packet_size": 220,
+        "avg_inter_arrival_ms": 20,
+        "duration_seconds": 2.5,
+        "bytes_total": 17600,
+        "upstream_ratio": 0.5
+      }
+    },
+    {
+      "session_id": 2,
+      "src_ip": "10.0.0.3",
+      "dst_ip": "10.0.0.4",
+      "ipsec_protocol": "ESP",
+      "protocol": "IKEv2",
+      "exchange_mode": "Main",
+      "ipsec_mode": "Tunnel",
+      "encryption": "AES-256-CBC",
+      "authentication": "HMAC-SHA256",
+      "hash": "SHA256",
+      "dh_group": 14,
+      "key_exchange": "Diffie-Hellman",
+      "auth_method": "Pre-Shared Key",
+      "lifetime_seconds": 100000,
+      "pfs_enabled": true,
+      "replay_protection": true,
+      "nat_traversal": false,
+      "identity_exposed": false,
+      "confidence": 0.85,
+      "traffic_features": {
+        "packet_count": 900,
+        "avg_packet_size": 1200,
+        "min_packet_size": 200,
+        "max_packet_size": 1420,
+        "avg_inter_arrival_ms": 8,
+        "duration_seconds": 7.2,
+        "bytes_total": 1080000,
+        "upstream_ratio": 0.05
+      }
+    }
+  ]
+}
