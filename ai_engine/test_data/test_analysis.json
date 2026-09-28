@@ -1,0 +1,149 @@
+{
+  "file_name": "test_capture.pcap",
+  "total_packets": 1020,
+  "ip_version": "IPv4",
+  "packet_summary": {
+    "esp_packets": 1010,
+    "ike_packets": 10,
+    "ah_packets": 0,
+    "other_packets": 0
+  },
+  "sessions": [
+    {
+      "session_id": 1,
+      "protocol": "ESP",
+      "ike_version": "IKEv1",
+      "ike_mode": "Aggressive",
+      "ipsec_mode": "Tunnel",
+      "encryption": "3DES",
+      "integrity": "HMAC-MD5",
+      "hash": "MD5",
+      "dh_group": 2,
+      "authentication": "Pre-Shared Key",
+      "lifetime": 86400,
+      "pfs": false,
+      "replay_protection": false,
+      "identity_exposed": true,
+      "confidence": 0.9,
+      "traffic_features": {
+        "packet_count": 110,
+        "avg_packet_size": 160,
+        "min_packet_size": 96,
+        "max_packet_size": 220,
+        "avg_inter_arrival_ms": 20,
+        "duration_seconds": 2.5,
+        "bytes_total": 17600,
+        "upstream_ratio": 0.5
+      }
+    },
+    {
+      "session_id": 2,
+      "protocol": "ESP",
+      "ike_version": "IKEv2",
+      "ike_mode": "Main",
+      "ipsec_mode": "Tunnel",
+      "encryption": "AES-256-CBC",
+      "integrity": "HMAC-SHA256",
+      "hash": "SHA256",
+      "dh_group": 14,
+      "authentication": "Pre-Shared Key",
+      "lifetime": 100000,
+      "pfs": true,
+      "replay_protection": true,
+      "identity_exposed": false,
+      "confidence": 0.85,
+      "traffic_features": {
+        "packet_count": 900,
+        "avg_packet_size": 1200,
+        "min_packet_size": 200,
+        "max_packet_size": 1420,
+        "avg_inter_arrival_ms": 8,
+        "duration_seconds": 7.2,
+        "bytes_total": 1080000,
+        "upstream_ratio": 0.05
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "F001",
+      "session_id": 1,
+      "category": "Encryption",
+      "severity": "High",
+      "title": "Weak encryption algorithm: 3DES",
+      "description": "3DES has a 64-bit block size and is deprecated; it is vulnerable to birthday attacks such as Sweet32."
+    },
+    {
+      "id": "F002",
+      "session_id": 1,
+      "category": "Hash",
+      "severity": "High",
+      "title": "Weak hash algorithm: MD5",
+      "description": "MD5 is cryptographically broken and should not be used for integrity protection."
+    },
+    {
+      "id": "F003",
+      "session_id": 1,
+      "category": "KeyExchange",
+      "severity": "High",
+      "title": "Weak Diffie-Hellman group: DH group 2",
+      "description": "DH group 2 uses a 1024-bit modulus, which is below current minimum recommendations."
+    },
+    {
+      "id": "F004",
+      "session_id": 1,
+      "category": "Protocol",
+      "severity": "Medium",
+      "title": "Legacy protocol version: IKEv1",
+      "description": "IKEv1 is deprecated in favour of IKEv2, which has stronger defaults and better resistance to attacks."
+    },
+    {
+      "id": "F005",
+      "session_id": 1,
+      "category": "Protocol",
+      "severity": "High",
+      "title": "IKEv1 Aggressive Mode in use",
+      "description": "Aggressive Mode exposes a hash of the pre-shared key that can be captured and cracked offline."
+    },
+    {
+      "id": "F006",
+      "session_id": 1,
+      "category": "Authentication",
+      "severity": "Medium",
+      "title": "Pre-Shared Key authentication",
+      "description": "Pre-shared keys are weaker than certificate-based authentication and are hard to rotate safely."
+    },
+    {
+      "id": "F007",
+      "session_id": 1,
+      "category": "PFS",
+      "severity": "Medium",
+      "title": "Perfect Forward Secrecy disabled",
+      "description": "Without PFS, compromise of one key can expose traffic from other sessions."
+    },
+    {
+      "id": "F008",
+      "session_id": 1,
+      "category": "MetadataExposure",
+      "severity": "Medium",
+      "title": "Identity sent in clear",
+      "description": "Peer identity is transmitted unencrypted during the handshake and can be observed by an eavesdropper."
+    },
+    {
+      "id": "F009",
+      "session_id": 2,
+      "category": "Encryption",
+      "severity": "Low",
+      "title": "AES-256-CBC used instead of an AEAD cipher",
+      "description": "AES-256-CBC is acceptable but AES-GCM is preferred because it provides authenticated encryption."
+    },
+    {
+      "id": "F010",
+      "session_id": 2,
+      "category": "Lifetime",
+      "severity": "Low",
+      "title": "SA lifetime over 86400 seconds",
+      "description": "Lifetime of 100000 seconds exceeds the recommended 86400-second maximum, increasing key exposure time."
+    }
+  ]
+}
