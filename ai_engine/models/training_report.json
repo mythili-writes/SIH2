@@ -1,0 +1,144 @@
+{
+  "accuracy": 0.9405,
+  "per_class": {
+    "VoIP": {
+      "precision": 0.9672,
+      "recall": 0.9833,
+      "f1": 0.9752,
+      "support": 60
+    },
+    "WhatsApp": {
+      "precision": 0.8615,
+      "recall": 0.9333,
+      "f1": 0.896,
+      "support": 60
+    },
+    "Email": {
+      "precision": 0.9815,
+      "recall": 0.8833,
+      "f1": 0.9298,
+      "support": 60
+    },
+    "Web Browsing": {
+      "precision": 0.9032,
+      "recall": 0.9333,
+      "f1": 0.918,
+      "support": 60
+    },
+    "ICMP": {
+      "precision": 0.9483,
+      "recall": 0.9167,
+      "f1": 0.9322,
+      "support": 60
+    },
+    "Video Streaming": {
+      "precision": 0.95,
+      "recall": 0.95,
+      "f1": 0.95,
+      "support": 60
+    },
+    "File Transfer": {
+      "precision": 0.9833,
+      "recall": 0.9833,
+      "f1": 0.9833,
+      "support": 60
+    }
+  },
+  "confusion_matrix": [
+    [
+      59,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    [
+      0,
+      56,
+      0,
+      2,
+      1,
+      0,
+      1
+    ],
+    [
+      0,
+      3,
+      53,
+      3,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      2,
+      0,
+      56,
+      0,
+      2,
+      0
+    ],
+    [
+      2,
+      3,
+      0,
+      0,
+      55,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      1,
+      1,
+      0,
+      57,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      59
+    ]
+  ],
+  "classes": [
+    "VoIP",
+    "WhatsApp",
+    "Email",
+    "Web Browsing",
+    "ICMP",
+    "Video Streaming",
+    "File Transfer"
+  ],
+  "features": [
+    "packet_count",
+    "avg_packet_size",
+    "min_packet_size",
+    "max_packet_size",
+    "avg_inter_arrival_ms",
+    "duration_seconds",
+    "bytes_total",
+    "upstream_ratio"
+  ],
+  "feature_importances": {
+    "packet_count": 0.059,
+    "avg_packet_size": 0.1298,
+    "min_packet_size": 0.1486,
+    "max_packet_size": 0.1173,
+    "avg_inter_arrival_ms": 0.209,
+    "duration_seconds": 0.0476,
+    "bytes_total": 0.0671,
+    "upstream_ratio": 0.2215
+  },
+  "n_samples": 2100,
+  "sklearn_version": "1.9.0",
+  "note": "Trained on synthetic size/timing data; ESP payload is never used."
+}
