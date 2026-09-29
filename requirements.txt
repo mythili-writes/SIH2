@@ -1,0 +1,13 @@
+# IPsec VPN Security Analyser - full pipeline (backend + ai_engine + frontend)
+
+# backend: pcap parsing
+scapy>=2.5.0
+
+# frontend: dashboard
+streamlit>=1.38.0
+
+# frontend: executive report PDF export (optional - JSON download works without it)
+fpdf2>=2.7.0
+
+# ai_engine: only used when ANTHROPIC_API_KEY is set; --offline needs nothing
+anthropic>=0.40.0
