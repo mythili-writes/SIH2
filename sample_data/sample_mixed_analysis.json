@@ -1,0 +1,107 @@
+{
+  "file_name": "sample_mixed.pcap",
+  "total_packets": 40,
+  "ip_version": "IPv6",
+  "packet_summary": {
+    "ike_packets": 6,
+    "esp_packets": 34,
+    "ah_packets": 0,
+    "other_packets": 0
+  },
+  "sessions": [
+    {
+      "session_id": "S1",
+      "src_ip": "2001:db8::1",
+      "dst_ip": "2001:db8:100::20",
+      "protocol": "IKEv1",
+      "exchange_mode": "Main",
+      "encryption": "AES-128-CBC",
+      "hash": "SHA1",
+      "dh_group": 5,
+      "auth_method": "RSA Digital Signature",
+      "lifetime_seconds": 120,
+      "pfs_enabled": true,
+      "nat_traversal": false,
+      "identity_exposed": false,
+      "ipsec_mode": "Transport",
+      "replay_protection": true,
+      "ike_packet_count": 6,
+      "esp_packet_count": 34,
+      "ah_packet_count": 0,
+      "exchanges_observed": [
+        "Main",
+        "Quick Mode"
+      ],
+      "is_site_to_site": true,
+      "traffic_features": {
+        "packet_count": 34,
+        "avg_packet_size": 686.47,
+        "min_packet_size": 180,
+        "max_packet_size": 1380,
+        "avg_inter_arrival_ms": 178.237,
+        "duration_seconds": 5.881814,
+        "bytes_total": 23340,
+        "upstream_ratio": 0.353
+      },
+      "confidence": 1.0
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "F001",
+      "session_id": "S1",
+      "category": "Encryption",
+      "issue": "AES in CBC mode negotiated (AES-128-CBC): prefer an AEAD mode such as AES-GCM",
+      "severity": "Low",
+      "evidence": "IKE transform payload advertised AES-128-CBC; CBC requires a separate integrity algorithm and is more error-prone than AES-GCM"
+    },
+    {
+      "finding_id": "F002",
+      "session_id": "S1",
+      "category": "Hash",
+      "issue": "Deprecated integrity/hash algorithm negotiated: SHA-1",
+      "severity": "Medium",
+      "evidence": "IKE transform payload advertised SHA1 for session 2001:db8::1 -> 2001:db8:100::20"
+    },
+    {
+      "finding_id": "F003",
+      "session_id": "S1",
+      "category": "KeyExchange",
+      "issue": "Weak Diffie-Hellman group negotiated: group 5 (1536-bit MODP)",
+      "severity": "Medium",
+      "evidence": "IKE key exchange payload indicated DH group 5 for session 2001:db8::1 -> 2001:db8:100::20"
+    },
+    {
+      "finding_id": "F004",
+      "session_id": "S1",
+      "category": "Protocol",
+      "issue": "Deprecated key exchange protocol in use: IKEv1",
+      "severity": "Medium",
+      "evidence": "ISAKMP header reported version 1.0 for session 2001:db8::1 -> 2001:db8:100::20"
+    },
+    {
+      "finding_id": "F005",
+      "session_id": "S1",
+      "category": "Lifetime",
+      "issue": "SA lifetime below the recommended minimum: 120s (< 300s)",
+      "severity": "Low",
+      "evidence": "IKE SA lifetime attribute decoded as 120 seconds for session 2001:db8::1 -> 2001:db8:100::20; excessive rekeying destabilises the tunnel"
+    },
+    {
+      "finding_id": "F006",
+      "session_id": "S1",
+      "category": "Mode",
+      "issue": "Transport mode in use for what appears to be a site-to-site SA",
+      "severity": "Low",
+      "evidence": "ESP payload structure for session 2001:db8::1 -> 2001:db8:100::20 is consistent with transport mode; the inner IP header is therefore not protected"
+    },
+    {
+      "finding_id": "F007",
+      "session_id": "S1",
+      "category": "Compliance",
+      "issue": "Negotiated cipher suite is not in the approved list",
+      "severity": "Medium",
+      "evidence": "Suite AES-128-CBC/SHA1/DH5 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher AES-128-CBC does not meet the AES-256 minimum for non-AEAD modes"
+    }
+  ]
+}

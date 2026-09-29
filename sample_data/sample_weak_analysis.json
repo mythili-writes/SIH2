@@ -1,0 +1,131 @@
+{
+  "file_name": "sample_weak.pcap",
+  "total_packets": 47,
+  "ip_version": "IPv4",
+  "packet_summary": {
+    "ike_packets": 5,
+    "esp_packets": 40,
+    "ah_packets": 0,
+    "other_packets": 2
+  },
+  "sessions": [
+    {
+      "session_id": "S1",
+      "src_ip": "10.0.0.1",
+      "dst_ip": "203.0.113.9",
+      "protocol": "IKEv1",
+      "exchange_mode": "Aggressive",
+      "encryption": "3DES-CBC",
+      "hash": "MD5",
+      "dh_group": 2,
+      "auth_method": "Pre-Shared Key",
+      "lifetime_seconds": 172800,
+      "pfs_enabled": false,
+      "nat_traversal": false,
+      "identity_exposed": true,
+      "ipsec_mode": "Tunnel",
+      "replay_protection": false,
+      "ike_packet_count": 5,
+      "esp_packet_count": 40,
+      "ah_packet_count": 0,
+      "exchanges_observed": [
+        "Aggressive",
+        "Quick Mode"
+      ],
+      "is_site_to_site": true,
+      "traffic_features": {
+        "packet_count": 40,
+        "avg_packet_size": 150.0,
+        "min_packet_size": 150,
+        "max_packet_size": 150,
+        "avg_inter_arrival_ms": 20.0,
+        "duration_seconds": 0.779999,
+        "bytes_total": 6000,
+        "upstream_ratio": 0.5
+      },
+      "confidence": 1.0
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "F001",
+      "session_id": "S1",
+      "category": "Encryption",
+      "issue": "Weak encryption algorithm negotiated: 3DES (deprecated, 112-bit effective)",
+      "severity": "High",
+      "evidence": "IKE transform payload advertised 3DES-CBC for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F002",
+      "session_id": "S1",
+      "category": "Hash",
+      "issue": "Weak integrity/hash algorithm negotiated: MD5",
+      "severity": "High",
+      "evidence": "IKE transform payload advertised MD5 for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F003",
+      "session_id": "S1",
+      "category": "KeyExchange",
+      "issue": "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)",
+      "severity": "High",
+      "evidence": "IKE key exchange payload indicated DH group 2 for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F004",
+      "session_id": "S1",
+      "category": "Protocol",
+      "issue": "IKEv1 Aggressive Mode in use",
+      "severity": "High",
+      "evidence": "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500 for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F005",
+      "session_id": "S1",
+      "category": "Authentication",
+      "issue": "Pre-Shared Key authentication in use",
+      "severity": "Medium",
+      "evidence": "IKE transform payload advertised auth method 'Pre-Shared Key' for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F006",
+      "session_id": "S1",
+      "category": "PFS",
+      "issue": "Perfect Forward Secrecy is disabled",
+      "severity": "Medium",
+      "evidence": "No Diffie-Hellman key exchange payload observed during child SA negotiation for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F007",
+      "session_id": "S1",
+      "category": "Lifetime",
+      "issue": "SA lifetime exceeds the recommended maximum: 172800s (> 86400s)",
+      "severity": "Low",
+      "evidence": "IKE SA lifetime attribute decoded as 172800 seconds for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F008",
+      "session_id": "S1",
+      "category": "ReplayProtection",
+      "issue": "Anti-replay protection appears disabled",
+      "severity": "Medium",
+      "evidence": "ESP sequence numbers for session 10.0.0.1 -> 203.0.113.9 did not increase monotonically across the capture"
+    },
+    {
+      "finding_id": "F009",
+      "session_id": "S1",
+      "category": "MetadataExposure",
+      "issue": "Peer identity transmitted without encryption",
+      "severity": "Medium",
+      "evidence": "An IKE ID payload was observed in an unencrypted message for session 10.0.0.1 -> 203.0.113.9"
+    },
+    {
+      "finding_id": "F010",
+      "session_id": "S1",
+      "category": "Compliance",
+      "issue": "Negotiated cipher suite is not in the approved list",
+      "severity": "Medium",
+      "evidence": "Suite 3DES-CBC/MD5/DH2 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher 3DES-CBC is outside the approved AES family"
+    }
+  ]
+}

@@ -1,0 +1,411 @@
+{
+  "schema_version": "1.0",
+  "report_id": "RPT-43C29DAB3AB8",
+  "generated_at": "2026-09-29T04:13:00.220045+00:00",
+  "source_file": "sample_strong.pcap",
+  "mode": "offline",
+  "overall_risk_score": 0.0,
+  "risk_level": "Low",
+  "ai_confidence_score": 0.92,
+  "summary": "Analysis of sample_strong.pcap found 1 IPsec session(s) with no configuration weaknesses against the current rule set. The negotiated parameters are consistent with the approved cipher suite baseline. Overall risk score 0.0/100 (Low).",
+  "severity_breakdown": {
+    "Critical": 0,
+    "High": 0,
+    "Medium": 0,
+    "Low": 0
+  },
+  "findings": [],
+  "sessions": [
+    {
+      "session_id": "S1",
+      "src_ip": "192.168.50.1",
+      "dst_ip": "198.51.100.20",
+      "protocol": "IKEv2",
+      "exchange_mode": "IKE_SA_INIT",
+      "ipsec_mode": "Tunnel",
+      "encryption": "AES-256-GCM",
+      "hash": "SHA256",
+      "dh_group": 14,
+      "auth_method": "RSA Digital Signature",
+      "lifetime_seconds": null,
+      "pfs_enabled": true,
+      "nat_traversal": false,
+      "identity_exposed": false,
+      "replay_protection": true,
+      "parser_confidence": 0.92,
+      "session_risk_score": 0.0,
+      "session_risk_level": "Low",
+      "finding_count": 0
+    }
+  ],
+  "traffic_analysis": [
+    {
+      "session_id": "S1",
+      "src_ip": "192.168.50.1",
+      "dst_ip": "198.51.100.20",
+      "predicted_traffic_type": "Bulk File Transfer",
+      "traffic_confidence": 0.869,
+      "top_predictions": [
+        {
+          "traffic_type": "Bulk File Transfer",
+          "probability": 0.403
+        },
+        {
+          "traffic_type": "Video Streaming",
+          "probability": 0.2802
+        },
+        {
+          "traffic_type": "Web Browsing",
+          "probability": 0.119
+        }
+      ],
+      "traffic_features": {
+        "packet_count": 60,
+        "avg_packet_size": 1223.5,
+        "min_packet_size": 110,
+        "max_packet_size": 1420,
+        "avg_inter_arrival_ms": 3.0,
+        "duration_seconds": 0.177001,
+        "bytes_total": 73410,
+        "upstream_ratio": 0.9865
+      },
+      "metadata_inference": {
+        "observations": [
+          "Packet size distribution leaks the application class even though the payload is encrypted",
+          "Predominantly upstream (client is sending; upload or push pattern)",
+          "Regular, high-frequency cadence \u2014 consistent with real-time media",
+          "Short-lived session (<30s) \u2014 transactional or test traffic",
+          "Endpoint pair and tunnel timing are visible to any on-path observer"
+        ],
+        "directionality": "Predominantly upstream (client is sending; upload or push pattern)",
+        "session_longevity": "Short-lived session (<30s) \u2014 transactional or test traffic",
+        "estimated_throughput_bps": 3317947,
+        "avg_packet_size": 1223.5,
+        "metadata_leakage_score": 0.74,
+        "privacy_risk": "Medium",
+        "note": "All inferences are derived from packet size, timing and direction only. No ESP payload was decrypted or inspected."
+      }
+    }
+  ],
+  "threat_matrix": {
+    "axes": {
+      "likelihood": [
+        "Low",
+        "Medium",
+        "High"
+      ],
+      "impact": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ]
+    },
+    "entries": [],
+    "cells": [
+      {
+        "likelihood": "Low",
+        "impact": "Low",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Low",
+        "impact": "Medium",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Low",
+        "impact": "High",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Low",
+        "impact": "Critical",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "Low",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "Medium",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "High",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "Critical",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "High",
+        "impact": "Low",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "High",
+        "impact": "Medium",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "High",
+        "impact": "High",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "High",
+        "impact": "Critical",
+        "count": 0,
+        "threats": []
+      }
+    ]
+  },
+  "executive_report": {
+    "title": "IPsec VPN Security Assessment - Executive Summary",
+    "source_capture": "sample_strong.pcap",
+    "assessment_date": "2026-09-29",
+    "overall_risk_score": 0.0,
+    "risk_level": "Low",
+    "headline": "Low risk: 0 finding(s) across 1 session(s)",
+    "summary": "Analysis of sample_strong.pcap found 1 IPsec session(s) with no configuration weaknesses against the current rule set. The negotiated parameters are consistent with the approved cipher suite baseline. Overall risk score 0.0/100 (Low).",
+    "severity_breakdown": {
+      "Critical": 0,
+      "High": 0,
+      "Medium": 0,
+      "Low": 0
+    },
+    "key_risks": [],
+    "business_impact": "No material exposure identified. The configuration is consistent with current hardening guidance; maintain the posture through periodic review.",
+    "recommended_actions": [],
+    "compliance_posture": {
+      "baseline": "NIST SP 800-77 Rev.1 / RFC 8221",
+      "status": "Pass",
+      "failing_controls": [],
+      "note": "Negotiated parameters meet the approved cipher suite baseline."
+    },
+    "next_steps": [
+      "Approve the remediation plan and assign an owner per action area.",
+      "Schedule a maintenance window to renegotiate the affected tunnels.",
+      "Re-capture and re-run this assessment after the change to confirm closure."
+    ],
+    "scope_note": "This assessment identifies, scores and explains IPsec configuration weaknesses from passive traffic capture. It does not modify or auto-patch any VPN device."
+  },
+  "technical_report": {
+    "title": "IPsec VPN Security Assessment - Technical Detail",
+    "methodology": "Passive analysis of a packet capture. IKEv1/IKEv2 negotiation payloads are parsed for the agreed transform set; ESP and AH flows are measured for encapsulation mode, sequence-number behaviour and statistical traffic features. Findings are produced by a deterministic rule engine and scored by severity with diminishing returns. ESP payloads are never decrypted.",
+    "environment": {
+      "source_capture": "sample_strong.pcap",
+      "total_packets": 66,
+      "ip_version": "IPv4",
+      "ike_packets": 6,
+      "esp_packets": 60,
+      "ah_packets": 0,
+      "other_packets": 0,
+      "sessions_analysed": 1
+    },
+    "overall_risk_score": 0.0,
+    "risk_level": "Low",
+    "findings_detail": [],
+    "session_details": [
+      {
+        "session_id": "S1",
+        "src_ip": "192.168.50.1",
+        "dst_ip": "198.51.100.20",
+        "protocol": "IKEv2",
+        "exchange_mode": "IKE_SA_INIT",
+        "ipsec_mode": "Tunnel",
+        "encryption": "AES-256-GCM",
+        "hash": "SHA256",
+        "dh_group": 14,
+        "auth_method": "RSA Digital Signature",
+        "lifetime_seconds": null,
+        "pfs_enabled": true,
+        "nat_traversal": false,
+        "identity_exposed": false,
+        "replay_protection": true,
+        "parser_confidence": 0.92,
+        "session_risk_score": 0.0,
+        "session_risk_level": "Low",
+        "finding_count": 0
+      }
+    ],
+    "traffic_analysis": [
+      {
+        "session_id": "S1",
+        "src_ip": "192.168.50.1",
+        "dst_ip": "198.51.100.20",
+        "predicted_traffic_type": "Bulk File Transfer",
+        "traffic_confidence": 0.869,
+        "top_predictions": [
+          {
+            "traffic_type": "Bulk File Transfer",
+            "probability": 0.403
+          },
+          {
+            "traffic_type": "Video Streaming",
+            "probability": 0.2802
+          },
+          {
+            "traffic_type": "Web Browsing",
+            "probability": 0.119
+          }
+        ],
+        "traffic_features": {
+          "packet_count": 60,
+          "avg_packet_size": 1223.5,
+          "min_packet_size": 110,
+          "max_packet_size": 1420,
+          "avg_inter_arrival_ms": 3.0,
+          "duration_seconds": 0.177001,
+          "bytes_total": 73410,
+          "upstream_ratio": 0.9865
+        },
+        "metadata_inference": {
+          "observations": [
+            "Packet size distribution leaks the application class even though the payload is encrypted",
+            "Predominantly upstream (client is sending; upload or push pattern)",
+            "Regular, high-frequency cadence \u2014 consistent with real-time media",
+            "Short-lived session (<30s) \u2014 transactional or test traffic",
+            "Endpoint pair and tunnel timing are visible to any on-path observer"
+          ],
+          "directionality": "Predominantly upstream (client is sending; upload or push pattern)",
+          "session_longevity": "Short-lived session (<30s) \u2014 transactional or test traffic",
+          "estimated_throughput_bps": 3317947,
+          "avg_packet_size": 1223.5,
+          "metadata_leakage_score": 0.74,
+          "privacy_risk": "Medium",
+          "note": "All inferences are derived from packet size, timing and direction only. No ESP payload was decrypted or inspected."
+        }
+      }
+    ],
+    "threat_matrix": {
+      "axes": {
+        "likelihood": [
+          "Low",
+          "Medium",
+          "High"
+        ],
+        "impact": [
+          "Low",
+          "Medium",
+          "High",
+          "Critical"
+        ]
+      },
+      "entries": [],
+      "cells": [
+        {
+          "likelihood": "Low",
+          "impact": "Low",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Low",
+          "impact": "Medium",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Low",
+          "impact": "High",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Low",
+          "impact": "Critical",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "Low",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "Medium",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "High",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "Critical",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "High",
+          "impact": "Low",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "High",
+          "impact": "Medium",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "High",
+          "impact": "High",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "High",
+          "impact": "Critical",
+          "count": 0,
+          "threats": []
+        }
+      ]
+    },
+    "remediation_plan": [],
+    "detection_notes": [
+      "Alert on IKEv1 aggressive mode exchanges (UDP/500) originating from any gateway.",
+      "Flag ESP SAs whose sequence numbers reset or regress, which indicates replay exposure.",
+      "Baseline per-tunnel packet-size distributions; a shift can reveal an application change behind the tunnel.",
+      "Track IKE proposals offering DES/3DES/MD5/DH1/DH2 and treat any acceptance as a policy violation."
+    ],
+    "limitations": [
+      "Parameters that never appear on the wire (for example a locally configured SA lifetime that is not negotiated) are reported as Unknown.",
+      "Encapsulation mode and anti-replay status are inferred from ESP structure and sequence behaviour, not read from configuration.",
+      "Traffic classification is probabilistic and based only on size/timing metadata."
+    ],
+    "appendix": {
+      "severity_model": {
+        "Critical": 40.0,
+        "High": 22.0,
+        "Medium": 10.0,
+        "Low": 3.0
+      },
+      "schema_version": "1.0"
+    }
+  },
+  "ai_notes": "Rule-based analysis; no model call made."
+}
