@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "report_id": "RPT-21C40565AD79",
-  "generated_at": "2026-09-29T04:13:00.252691+00:00",
+  "generated_at": "2026-09-29T04:23:36.528863+00:00",
   "source_file": "sample_mixed.pcap",
   "mode": "offline",
   "overall_risk_score": 43.6,

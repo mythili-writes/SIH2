@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "report_id": "RPT-ECF19CAB6913",
-  "generated_at": "2026-09-29T04:13:00.183901+00:00",
+  "generated_at": "2026-09-29T04:23:36.466240+00:00",
   "source_file": "sample_weak.pcap",
   "mode": "offline",
   "overall_risk_score": 78.2,
