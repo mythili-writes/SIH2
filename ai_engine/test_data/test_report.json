@@ -1,0 +1,1137 @@
+{
+  "schema_version": "1.0",
+  "report_id": "RPT-E1D44A15F8C6",
+  "generated_at": "2026-09-29T04:02:24.446689+00:00",
+  "source_file": "test_capture.pcap",
+  "mode": "offline",
+  "overall_risk_score": 78.2,
+  "risk_level": "Critical",
+  "ai_confidence_score": 0.87,
+  "summary": "Analysis of test_capture.pcap identified 10 finding(s) across 1 IPsec session(s) (4 High, 5 Medium, 1 Low). The most significant issue is: Weak encryption algorithm negotiated: 3DES. The combination of weaknesses places this deployment at an overall risk score of 78.2/100 (Critical). Remediation should begin with the highest-severity cryptographic parameters before addressing policy and hygiene items.",
+  "severity_breakdown": {
+    "Critical": 0,
+    "High": 4,
+    "Medium": 5,
+    "Low": 1
+  },
+  "findings": [
+    {
+      "finding_id": "F001",
+      "session_id": "S1",
+      "category": "Encryption",
+      "issue": "Weak encryption algorithm negotiated: 3DES",
+      "severity": "High",
+      "evidence": "IKE transform payload advertised ENCR_3DES for session 192.168.10.1 -> 203.0.113.50",
+      "explanation": "The tunnel negotiated a symmetric cipher that no longer provides the effective key strength modern guidance requires. An attacker who can capture the encrypted flow can retain it and attempt offline recovery of the plaintext as compute becomes cheaper.",
+      "recommendation": "Renegotiate the IPsec proposal to AES-256-GCM (AEAD). If the peer cannot do GCM, use AES-256-CBC with a separate SHA-256 integrity algorithm, and remove DES/3DES from the allowed transform set entirely.",
+      "cvss_estimate": 7.5,
+      "references": [
+        "NIST SP 800-77 Rev.1 \u00a73.2",
+        "RFC 8221 \u00a75"
+      ]
+    },
+    {
+      "finding_id": "F002",
+      "session_id": "S1",
+      "category": "Hash",
+      "issue": "Weak integrity/hash algorithm negotiated: MD5",
+      "severity": "High",
+      "evidence": "IKE transform payload advertised AUTH_HMAC_MD5 for session S1",
+      "explanation": "The integrity/PRF algorithm in use has known collision weaknesses. A weak integrity algorithm undermines the authenticity guarantee of the tunnel: packet tampering becomes cheaper to hide than the cipher strength alone would suggest.",
+      "recommendation": "Move the integrity algorithm to SHA-256 or above (SHA-384/SHA-512). Delete MD5 and SHA-1 transforms from both the IKE and ESP proposals.",
+      "cvss_estimate": 7.5,
+      "references": [
+        "NIST SP 800-131A Rev.2",
+        "RFC 8247 \u00a72.2"
+      ]
+    },
+    {
+      "finding_id": "F003",
+      "session_id": "S1",
+      "category": "KeyExchange",
+      "issue": "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)",
+      "severity": "High",
+      "evidence": "IKE key exchange payload indicated DH group 2 for session S1",
+      "explanation": "The Diffie-Hellman group used to derive keying material is too small. Small MODP groups are within reach of well-resourced precomputation attacks, which would expose every session keyed from that group.",
+      "recommendation": "Use DH group 14 (2048-bit MODP) as a minimum; prefer group 19/20 (ECP-256/384) or group 21. Remove groups 1, 2 and 5 from the policy.",
+      "cvss_estimate": 7.5,
+      "references": [
+        "RFC 8247 \u00a72.4",
+        "NIST SP 800-57 Part 1 Rev.5"
+      ]
+    },
+    {
+      "finding_id": "F004",
+      "session_id": "S1",
+      "category": "Protocol",
+      "issue": "IKEv1 Aggressive Mode in use",
+      "severity": "High",
+      "evidence": "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500",
+      "explanation": "The tunnel uses IKEv1, which is deprecated. IKEv1 lacks the built-in DoS protection, reliable rekeying and MOBIKE support of IKEv2, and its aggressive mode transmits identity material before encryption starts.",
+      "recommendation": "Migrate the tunnel to IKEv2. If IKEv1 must remain during transition, disable aggressive mode and permit main mode only.",
+      "cvss_estimate": 7.5,
+      "references": [
+        "RFC 9395 (IKEv1 deprecation)",
+        "RFC 7296"
+      ]
+    },
+    {
+      "finding_id": "F005",
+      "session_id": "S1",
+      "category": "Authentication",
+      "issue": "Pre-Shared Key authentication in use",
+      "severity": "Medium",
+      "evidence": "IKE transform payload advertised auth method 1 (Pre-Shared Key)",
+      "explanation": "Peer authentication relies on a pre-shared key. PSKs are commonly shared across devices, rarely rotated, and \u2014 in IKEv1 aggressive mode \u2014 can be captured in a form that permits offline cracking.",
+      "recommendation": "Migrate to certificate-based authentication (RSA/ECDSA) with a managed PKI. Where a PSK must remain, make it at least 32 random characters, unique per peer, and rotate it on a defined schedule.",
+      "cvss_estimate": 5.4,
+      "references": [
+        "NIST SP 800-77 Rev.1 \u00a74.3",
+        "RFC 8247 \u00a72.3"
+      ]
+    },
+    {
+      "finding_id": "F006",
+      "session_id": "S1",
+      "category": "PFS",
+      "issue": "Perfect Forward Secrecy is disabled",
+      "severity": "Medium",
+      "evidence": "No KE payload observed in quick mode exchange for session S1",
+      "explanation": "Perfect Forward Secrecy is disabled, so child SA keys are derived from the IKE SA keying material. Compromise of that long-term material therefore retroactively exposes traffic from every prior session.",
+      "recommendation": "Enable PFS on the child SA and pin it to DH group 14 or higher so each rekey performs a fresh Diffie-Hellman exchange.",
+      "cvss_estimate": 5.4,
+      "references": [
+        "RFC 7296 \u00a71.3.2",
+        "NIST SP 800-77 Rev.1 \u00a74.4"
+      ]
+    },
+    {
+      "finding_id": "F007",
+      "session_id": "S1",
+      "category": "ReplayProtection",
+      "issue": "Anti-replay protection appears disabled",
+      "severity": "Medium",
+      "evidence": "ESP sequence numbers did not increase monotonically across 40 packets",
+      "explanation": "Anti-replay is not in effect for this SA. Without a replay window an attacker who can capture ESP packets can retransmit them, and the receiver will accept and process the duplicates.",
+      "recommendation": "Enable anti-replay on the SA and set the replay window to at least 1024 packets (larger for high-throughput or multi-queue links).",
+      "cvss_estimate": 5.4,
+      "references": [
+        "RFC 4303 \u00a73.4.3",
+        "NIST SP 800-77 Rev.1 \u00a73.3"
+      ]
+    },
+    {
+      "finding_id": "F008",
+      "session_id": "S1",
+      "category": "MetadataExposure",
+      "issue": "Peer identity transmitted without encryption",
+      "severity": "Medium",
+      "evidence": "ID payload present in unencrypted aggressive mode message 1",
+      "explanation": "Endpoint identity material is observable in the negotiation. This lets a passive observer map which peers talk to which gateways, and gives an attacker the identity values needed to target credential attacks.",
+      "recommendation": "Use IKEv2 (which encrypts identity payloads) or IKEv1 main mode, and avoid FQDN/user-FQDN identities that disclose organisational detail.",
+      "cvss_estimate": 5.4,
+      "references": [
+        "RFC 7296 \u00a73.5",
+        "RFC 2409 \u00a75.4"
+      ]
+    },
+    {
+      "finding_id": "F009",
+      "session_id": "S1",
+      "category": "Lifetime",
+      "issue": "SA lifetime outside recommended range: 172800s",
+      "severity": "Low",
+      "evidence": "IKE SA lifetime attribute decoded as 172800 seconds (> 86400)",
+      "explanation": "The SA lifetime is outside the recommended window. Very long lifetimes increase the volume of data protected by a single key; very short ones cause constant rekeying that can destabilise the tunnel and burn CPU.",
+      "recommendation": "Set the IKE SA lifetime to roughly 24 hours and the IPsec (child) SA lifetime to 1-8 hours, with a data-volume based rekey limit as well.",
+      "cvss_estimate": 3.1,
+      "references": [
+        "NIST SP 800-77 Rev.1 \u00a74.5",
+        "RFC 4301 \u00a74.4.2"
+      ]
+    },
+    {
+      "finding_id": "F010",
+      "session_id": "S1",
+      "category": "Compliance",
+      "issue": "Negotiated cipher suite is not in the approved list",
+      "severity": "Medium",
+      "evidence": "Suite 3DES/MD5/DH2 does not meet the AES-GCM or AES-256 + SHA256 baseline",
+      "explanation": "The negotiated cipher suite falls outside the approved baseline (AES-GCM / AES-256 with SHA-256 or stronger). Even where no single parameter is critical, the combination will not pass an audit against current hardening guidance.",
+      "recommendation": "Align the proposal with the approved baseline: AES-256-GCM, SHA-256+, DH group 14/19+, IKEv2, PFS enabled, certificate authentication.",
+      "cvss_estimate": 5.4,
+      "references": [
+        "NIST SP 800-77 Rev.1",
+        "RFC 8221"
+      ]
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": "S1",
+      "src_ip": "192.168.10.1",
+      "dst_ip": "203.0.113.50",
+      "protocol": "IKEv1",
+      "exchange_mode": "Aggressive",
+      "ipsec_mode": "Tunnel",
+      "encryption": "3DES",
+      "hash": "MD5",
+      "dh_group": 2,
+      "auth_method": "Pre-Shared Key",
+      "lifetime_seconds": 172800,
+      "pfs_enabled": false,
+      "nat_traversal": false,
+      "identity_exposed": true,
+      "replay_protection": false,
+      "parser_confidence": 0.82,
+      "session_risk_score": 78.2,
+      "session_risk_level": "Critical",
+      "finding_count": 10
+    }
+  ],
+  "traffic_analysis": [
+    {
+      "session_id": "S1",
+      "src_ip": "192.168.10.1",
+      "dst_ip": "203.0.113.50",
+      "predicted_traffic_type": "VoIP",
+      "traffic_confidence": 0.97,
+      "top_predictions": [
+        {
+          "traffic_type": "VoIP",
+          "probability": 0.451
+        },
+        {
+          "traffic_type": "Interactive/Remote Shell",
+          "probability": 0.2203
+        },
+        {
+          "traffic_type": "Keepalive/Idle",
+          "probability": 0.1364
+        }
+      ],
+      "traffic_features": {
+        "packet_count": 40,
+        "avg_packet_size": 148.5,
+        "min_packet_size": 134,
+        "max_packet_size": 166,
+        "avg_inter_arrival_ms": 20.0,
+        "duration_seconds": 0.78,
+        "bytes_total": 5940,
+        "upstream_ratio": 0.5
+      },
+      "metadata_inference": {
+        "observations": [
+          "Packet size distribution leaks the application class even though the payload is encrypted",
+          "Bidirectional and roughly symmetric (conversational pattern)",
+          "Regular, high-frequency cadence \u2014 consistent with real-time media",
+          "Short-lived session (<30s) \u2014 transactional or test traffic",
+          "Endpoint pair and tunnel timing are visible to any on-path observer",
+          "IKE identity payload is transmitted in the clear \u2014 peer identity is directly readable"
+        ],
+        "directionality": "Bidirectional and roughly symmetric (conversational pattern)",
+        "session_longevity": "Short-lived session (<30s) \u2014 transactional or test traffic",
+        "estimated_throughput_bps": 60923,
+        "avg_packet_size": 148.5,
+        "metadata_leakage_score": 0.85,
+        "privacy_risk": "High",
+        "note": "All inferences are derived from packet size, timing and direction only. No ESP payload was decrypted or inspected."
+      }
+    }
+  ],
+  "threat_matrix": {
+    "axes": {
+      "likelihood": [
+        "Low",
+        "Medium",
+        "High"
+      ],
+      "impact": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ]
+    },
+    "entries": [
+      {
+        "threat": "Offline decryption of captured tunnel traffic",
+        "category": "Encryption",
+        "likelihood": "High",
+        "impact": "Critical",
+        "severity": "High",
+        "related_findings": [
+          "F001"
+        ]
+      },
+      {
+        "threat": "Integrity forgery / packet tampering",
+        "category": "Hash",
+        "likelihood": "Medium",
+        "impact": "High",
+        "severity": "High",
+        "related_findings": [
+          "F002"
+        ]
+      },
+      {
+        "threat": "Key recovery via DH precomputation",
+        "category": "KeyExchange",
+        "likelihood": "Medium",
+        "impact": "Critical",
+        "severity": "High",
+        "related_findings": [
+          "F003"
+        ]
+      },
+      {
+        "threat": "Exploitation of deprecated IKEv1 weaknesses",
+        "category": "Protocol",
+        "likelihood": "High",
+        "impact": "Medium",
+        "severity": "High",
+        "related_findings": [
+          "F004"
+        ]
+      },
+      {
+        "threat": "PSK cracking leading to peer impersonation",
+        "category": "Authentication",
+        "likelihood": "High",
+        "impact": "High",
+        "severity": "Medium",
+        "related_findings": [
+          "F005"
+        ]
+      },
+      {
+        "threat": "Retrospective decryption after key compromise",
+        "category": "PFS",
+        "likelihood": "Medium",
+        "impact": "High",
+        "severity": "Medium",
+        "related_findings": [
+          "F006"
+        ]
+      },
+      {
+        "threat": "Packet replay injection",
+        "category": "ReplayProtection",
+        "likelihood": "Medium",
+        "impact": "Medium",
+        "severity": "Medium",
+        "related_findings": [
+          "F007"
+        ]
+      },
+      {
+        "threat": "Passive identity and topology mapping",
+        "category": "MetadataExposure",
+        "likelihood": "High",
+        "impact": "Low",
+        "severity": "Medium",
+        "related_findings": [
+          "F008"
+        ]
+      },
+      {
+        "threat": "Extended key exposure window",
+        "category": "Lifetime",
+        "likelihood": "Low",
+        "impact": "Medium",
+        "severity": "Low",
+        "related_findings": [
+          "F009"
+        ]
+      },
+      {
+        "threat": "Audit failure against hardening baseline",
+        "category": "Compliance",
+        "likelihood": "High",
+        "impact": "Medium",
+        "severity": "Medium",
+        "related_findings": [
+          "F010"
+        ]
+      }
+    ],
+    "cells": [
+      {
+        "likelihood": "Low",
+        "impact": "Low",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Low",
+        "impact": "Medium",
+        "count": 1,
+        "threats": [
+          "Extended key exposure window"
+        ]
+      },
+      {
+        "likelihood": "Low",
+        "impact": "High",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Low",
+        "impact": "Critical",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "Low",
+        "count": 0,
+        "threats": []
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "Medium",
+        "count": 1,
+        "threats": [
+          "Packet replay injection"
+        ]
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "High",
+        "count": 2,
+        "threats": [
+          "Integrity forgery / packet tampering",
+          "Retrospective decryption after key compromise"
+        ]
+      },
+      {
+        "likelihood": "Medium",
+        "impact": "Critical",
+        "count": 1,
+        "threats": [
+          "Key recovery via DH precomputation"
+        ]
+      },
+      {
+        "likelihood": "High",
+        "impact": "Low",
+        "count": 1,
+        "threats": [
+          "Passive identity and topology mapping"
+        ]
+      },
+      {
+        "likelihood": "High",
+        "impact": "Medium",
+        "count": 2,
+        "threats": [
+          "Exploitation of deprecated IKEv1 weaknesses",
+          "Audit failure against hardening baseline"
+        ]
+      },
+      {
+        "likelihood": "High",
+        "impact": "High",
+        "count": 1,
+        "threats": [
+          "PSK cracking leading to peer impersonation"
+        ]
+      },
+      {
+        "likelihood": "High",
+        "impact": "Critical",
+        "count": 1,
+        "threats": [
+          "Offline decryption of captured tunnel traffic"
+        ]
+      }
+    ]
+  },
+  "executive_report": {
+    "title": "IPsec VPN Security Assessment - Executive Summary",
+    "source_capture": "test_capture.pcap",
+    "assessment_date": "2026-09-29",
+    "overall_risk_score": 78.2,
+    "risk_level": "Critical",
+    "headline": "Critical risk: 10 finding(s) across 1 session(s)",
+    "summary": "Analysis of test_capture.pcap identified 10 finding(s) across 1 IPsec session(s) (4 High, 5 Medium, 1 Low). The most significant issue is: Weak encryption algorithm negotiated: 3DES. The combination of weaknesses places this deployment at an overall risk score of 78.2/100 (Critical). Remediation should begin with the highest-severity cryptographic parameters before addressing policy and hygiene items.",
+    "severity_breakdown": {
+      "Critical": 0,
+      "High": 4,
+      "Medium": 5,
+      "Low": 1
+    },
+    "key_risks": [
+      {
+        "severity": "High",
+        "category": "Encryption",
+        "risk": "Weak encryption algorithm negotiated: 3DES",
+        "why_it_matters": "The tunnel negotiated a symmetric cipher that no longer provides the effective key strength modern guidance requires."
+      },
+      {
+        "severity": "High",
+        "category": "Hash",
+        "risk": "Weak integrity/hash algorithm negotiated: MD5",
+        "why_it_matters": "The integrity/PRF algorithm in use has known collision weaknesses."
+      },
+      {
+        "severity": "High",
+        "category": "KeyExchange",
+        "risk": "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)",
+        "why_it_matters": "The Diffie-Hellman group used to derive keying material is too small."
+      },
+      {
+        "severity": "High",
+        "category": "Protocol",
+        "risk": "IKEv1 Aggressive Mode in use",
+        "why_it_matters": "The tunnel uses IKEv1, which is deprecated."
+      },
+      {
+        "severity": "Medium",
+        "category": "Authentication",
+        "risk": "Pre-Shared Key authentication in use",
+        "why_it_matters": "Peer authentication relies on a pre-shared key."
+      }
+    ],
+    "business_impact": "Traffic crossing these tunnels should be treated as potentially recoverable by a capable adversary. Any regulated or commercially sensitive data carried over the VPN is exposed to interception risk, and the configuration would not survive a security audit.",
+    "recommended_actions": [
+      {
+        "priority": 1,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "Encryption",
+        "action": "Renegotiate the IPsec proposal to AES-256-GCM (AEAD). If the peer cannot do GCM, use AES-256-CBC with a separate SHA-256 integrity algorithm, and remove DES/3DES from the allowed transform set entirely.",
+        "addresses": "F001"
+      },
+      {
+        "priority": 2,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "Hash",
+        "action": "Move the integrity algorithm to SHA-256 or above (SHA-384/SHA-512). Delete MD5 and SHA-1 transforms from both the IKE and ESP proposals.",
+        "addresses": "F002"
+      },
+      {
+        "priority": 3,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "KeyExchange",
+        "action": "Use DH group 14 (2048-bit MODP) as a minimum; prefer group 19/20 (ECP-256/384) or group 21. Remove groups 1, 2 and 5 from the policy.",
+        "addresses": "F003"
+      },
+      {
+        "priority": 4,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "Protocol",
+        "action": "Migrate the tunnel to IKEv2. If IKEv1 must remain during transition, disable aggressive mode and permit main mode only.",
+        "addresses": "F004"
+      },
+      {
+        "priority": 5,
+        "timeline": "Planned (1-3 months)",
+        "area": "Authentication",
+        "action": "Migrate to certificate-based authentication (RSA/ECDSA) with a managed PKI. Where a PSK must remain, make it at least 32 random characters, unique per peer, and rotate it on a defined schedule.",
+        "addresses": "F005"
+      },
+      {
+        "priority": 6,
+        "timeline": "Planned (1-3 months)",
+        "area": "PFS",
+        "action": "Enable PFS on the child SA and pin it to DH group 14 or higher so each rekey performs a fresh Diffie-Hellman exchange.",
+        "addresses": "F006"
+      },
+      {
+        "priority": 7,
+        "timeline": "Planned (1-3 months)",
+        "area": "ReplayProtection",
+        "action": "Enable anti-replay on the SA and set the replay window to at least 1024 packets (larger for high-throughput or multi-queue links).",
+        "addresses": "F007"
+      },
+      {
+        "priority": 8,
+        "timeline": "Planned (1-3 months)",
+        "area": "MetadataExposure",
+        "action": "Use IKEv2 (which encrypts identity payloads) or IKEv1 main mode, and avoid FQDN/user-FQDN identities that disclose organisational detail.",
+        "addresses": "F008"
+      },
+      {
+        "priority": 9,
+        "timeline": "Planned (1-3 months)",
+        "area": "Compliance",
+        "action": "Align the proposal with the approved baseline: AES-256-GCM, SHA-256+, DH group 14/19+, IKEv2, PFS enabled, certificate authentication.",
+        "addresses": "F010"
+      },
+      {
+        "priority": 10,
+        "timeline": "Routine maintenance",
+        "area": "Lifetime",
+        "action": "Set the IKE SA lifetime to roughly 24 hours and the IPsec (child) SA lifetime to 1-8 hours, with a data-volume based rekey limit as well.",
+        "addresses": "F009"
+      }
+    ],
+    "compliance_posture": {
+      "baseline": "NIST SP 800-77 Rev.1 / RFC 8221",
+      "status": "Fail",
+      "failing_controls": [
+        "Authentication",
+        "Compliance",
+        "Encryption",
+        "Hash",
+        "KeyExchange",
+        "Lifetime",
+        "MetadataExposure",
+        "PFS",
+        "Protocol",
+        "ReplayProtection"
+      ],
+      "note": "10 control area(s) deviate from the baseline; 4 high-or-critical finding(s) must be closed before the deployment can be considered compliant."
+    },
+    "next_steps": [
+      "Approve the remediation plan and assign an owner per action area.",
+      "Schedule a maintenance window to renegotiate the affected tunnels.",
+      "Re-capture and re-run this assessment after the change to confirm closure."
+    ],
+    "scope_note": "This assessment identifies, scores and explains IPsec configuration weaknesses from passive traffic capture. It does not modify or auto-patch any VPN device."
+  },
+  "technical_report": {
+    "title": "IPsec VPN Security Assessment - Technical Detail",
+    "methodology": "Passive analysis of a packet capture. IKEv1/IKEv2 negotiation payloads are parsed for the agreed transform set; ESP and AH flows are measured for encapsulation mode, sequence-number behaviour and statistical traffic features. Findings are produced by a deterministic rule engine and scored by severity with diminishing returns. ESP payloads are never decrypted.",
+    "environment": {
+      "source_capture": "test_capture.pcap",
+      "total_packets": 48,
+      "ip_version": "IPv4",
+      "ike_packets": 6,
+      "esp_packets": 40,
+      "ah_packets": 0,
+      "other_packets": 2,
+      "sessions_analysed": 1
+    },
+    "overall_risk_score": 78.2,
+    "risk_level": "Critical",
+    "findings_detail": [
+      {
+        "finding_id": "F001",
+        "session_id": "S1",
+        "category": "Encryption",
+        "issue": "Weak encryption algorithm negotiated: 3DES",
+        "severity": "High",
+        "evidence": "IKE transform payload advertised ENCR_3DES for session 192.168.10.1 -> 203.0.113.50",
+        "explanation": "The tunnel negotiated a symmetric cipher that no longer provides the effective key strength modern guidance requires. An attacker who can capture the encrypted flow can retain it and attempt offline recovery of the plaintext as compute becomes cheaper.",
+        "recommendation": "Renegotiate the IPsec proposal to AES-256-GCM (AEAD). If the peer cannot do GCM, use AES-256-CBC with a separate SHA-256 integrity algorithm, and remove DES/3DES from the allowed transform set entirely.",
+        "cvss_estimate": 7.5,
+        "references": [
+          "NIST SP 800-77 Rev.1 \u00a73.2",
+          "RFC 8221 \u00a75"
+        ]
+      },
+      {
+        "finding_id": "F002",
+        "session_id": "S1",
+        "category": "Hash",
+        "issue": "Weak integrity/hash algorithm negotiated: MD5",
+        "severity": "High",
+        "evidence": "IKE transform payload advertised AUTH_HMAC_MD5 for session S1",
+        "explanation": "The integrity/PRF algorithm in use has known collision weaknesses. A weak integrity algorithm undermines the authenticity guarantee of the tunnel: packet tampering becomes cheaper to hide than the cipher strength alone would suggest.",
+        "recommendation": "Move the integrity algorithm to SHA-256 or above (SHA-384/SHA-512). Delete MD5 and SHA-1 transforms from both the IKE and ESP proposals.",
+        "cvss_estimate": 7.5,
+        "references": [
+          "NIST SP 800-131A Rev.2",
+          "RFC 8247 \u00a72.2"
+        ]
+      },
+      {
+        "finding_id": "F003",
+        "session_id": "S1",
+        "category": "KeyExchange",
+        "issue": "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)",
+        "severity": "High",
+        "evidence": "IKE key exchange payload indicated DH group 2 for session S1",
+        "explanation": "The Diffie-Hellman group used to derive keying material is too small. Small MODP groups are within reach of well-resourced precomputation attacks, which would expose every session keyed from that group.",
+        "recommendation": "Use DH group 14 (2048-bit MODP) as a minimum; prefer group 19/20 (ECP-256/384) or group 21. Remove groups 1, 2 and 5 from the policy.",
+        "cvss_estimate": 7.5,
+        "references": [
+          "RFC 8247 \u00a72.4",
+          "NIST SP 800-57 Part 1 Rev.5"
+        ]
+      },
+      {
+        "finding_id": "F004",
+        "session_id": "S1",
+        "category": "Protocol",
+        "issue": "IKEv1 Aggressive Mode in use",
+        "severity": "High",
+        "evidence": "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500",
+        "explanation": "The tunnel uses IKEv1, which is deprecated. IKEv1 lacks the built-in DoS protection, reliable rekeying and MOBIKE support of IKEv2, and its aggressive mode transmits identity material before encryption starts.",
+        "recommendation": "Migrate the tunnel to IKEv2. If IKEv1 must remain during transition, disable aggressive mode and permit main mode only.",
+        "cvss_estimate": 7.5,
+        "references": [
+          "RFC 9395 (IKEv1 deprecation)",
+          "RFC 7296"
+        ]
+      },
+      {
+        "finding_id": "F005",
+        "session_id": "S1",
+        "category": "Authentication",
+        "issue": "Pre-Shared Key authentication in use",
+        "severity": "Medium",
+        "evidence": "IKE transform payload advertised auth method 1 (Pre-Shared Key)",
+        "explanation": "Peer authentication relies on a pre-shared key. PSKs are commonly shared across devices, rarely rotated, and \u2014 in IKEv1 aggressive mode \u2014 can be captured in a form that permits offline cracking.",
+        "recommendation": "Migrate to certificate-based authentication (RSA/ECDSA) with a managed PKI. Where a PSK must remain, make it at least 32 random characters, unique per peer, and rotate it on a defined schedule.",
+        "cvss_estimate": 5.4,
+        "references": [
+          "NIST SP 800-77 Rev.1 \u00a74.3",
+          "RFC 8247 \u00a72.3"
+        ]
+      },
+      {
+        "finding_id": "F006",
+        "session_id": "S1",
+        "category": "PFS",
+        "issue": "Perfect Forward Secrecy is disabled",
+        "severity": "Medium",
+        "evidence": "No KE payload observed in quick mode exchange for session S1",
+        "explanation": "Perfect Forward Secrecy is disabled, so child SA keys are derived from the IKE SA keying material. Compromise of that long-term material therefore retroactively exposes traffic from every prior session.",
+        "recommendation": "Enable PFS on the child SA and pin it to DH group 14 or higher so each rekey performs a fresh Diffie-Hellman exchange.",
+        "cvss_estimate": 5.4,
+        "references": [
+          "RFC 7296 \u00a71.3.2",
+          "NIST SP 800-77 Rev.1 \u00a74.4"
+        ]
+      },
+      {
+        "finding_id": "F007",
+        "session_id": "S1",
+        "category": "ReplayProtection",
+        "issue": "Anti-replay protection appears disabled",
+        "severity": "Medium",
+        "evidence": "ESP sequence numbers did not increase monotonically across 40 packets",
+        "explanation": "Anti-replay is not in effect for this SA. Without a replay window an attacker who can capture ESP packets can retransmit them, and the receiver will accept and process the duplicates.",
+        "recommendation": "Enable anti-replay on the SA and set the replay window to at least 1024 packets (larger for high-throughput or multi-queue links).",
+        "cvss_estimate": 5.4,
+        "references": [
+          "RFC 4303 \u00a73.4.3",
+          "NIST SP 800-77 Rev.1 \u00a73.3"
+        ]
+      },
+      {
+        "finding_id": "F008",
+        "session_id": "S1",
+        "category": "MetadataExposure",
+        "issue": "Peer identity transmitted without encryption",
+        "severity": "Medium",
+        "evidence": "ID payload present in unencrypted aggressive mode message 1",
+        "explanation": "Endpoint identity material is observable in the negotiation. This lets a passive observer map which peers talk to which gateways, and gives an attacker the identity values needed to target credential attacks.",
+        "recommendation": "Use IKEv2 (which encrypts identity payloads) or IKEv1 main mode, and avoid FQDN/user-FQDN identities that disclose organisational detail.",
+        "cvss_estimate": 5.4,
+        "references": [
+          "RFC 7296 \u00a73.5",
+          "RFC 2409 \u00a75.4"
+        ]
+      },
+      {
+        "finding_id": "F009",
+        "session_id": "S1",
+        "category": "Lifetime",
+        "issue": "SA lifetime outside recommended range: 172800s",
+        "severity": "Low",
+        "evidence": "IKE SA lifetime attribute decoded as 172800 seconds (> 86400)",
+        "explanation": "The SA lifetime is outside the recommended window. Very long lifetimes increase the volume of data protected by a single key; very short ones cause constant rekeying that can destabilise the tunnel and burn CPU.",
+        "recommendation": "Set the IKE SA lifetime to roughly 24 hours and the IPsec (child) SA lifetime to 1-8 hours, with a data-volume based rekey limit as well.",
+        "cvss_estimate": 3.1,
+        "references": [
+          "NIST SP 800-77 Rev.1 \u00a74.5",
+          "RFC 4301 \u00a74.4.2"
+        ]
+      },
+      {
+        "finding_id": "F010",
+        "session_id": "S1",
+        "category": "Compliance",
+        "issue": "Negotiated cipher suite is not in the approved list",
+        "severity": "Medium",
+        "evidence": "Suite 3DES/MD5/DH2 does not meet the AES-GCM or AES-256 + SHA256 baseline",
+        "explanation": "The negotiated cipher suite falls outside the approved baseline (AES-GCM / AES-256 with SHA-256 or stronger). Even where no single parameter is critical, the combination will not pass an audit against current hardening guidance.",
+        "recommendation": "Align the proposal with the approved baseline: AES-256-GCM, SHA-256+, DH group 14/19+, IKEv2, PFS enabled, certificate authentication.",
+        "cvss_estimate": 5.4,
+        "references": [
+          "NIST SP 800-77 Rev.1",
+          "RFC 8221"
+        ]
+      }
+    ],
+    "session_details": [
+      {
+        "session_id": "S1",
+        "src_ip": "192.168.10.1",
+        "dst_ip": "203.0.113.50",
+        "protocol": "IKEv1",
+        "exchange_mode": "Aggressive",
+        "ipsec_mode": "Tunnel",
+        "encryption": "3DES",
+        "hash": "MD5",
+        "dh_group": 2,
+        "auth_method": "Pre-Shared Key",
+        "lifetime_seconds": 172800,
+        "pfs_enabled": false,
+        "nat_traversal": false,
+        "identity_exposed": true,
+        "replay_protection": false,
+        "parser_confidence": 0.82,
+        "session_risk_score": 78.2,
+        "session_risk_level": "Critical",
+        "finding_count": 10
+      }
+    ],
+    "traffic_analysis": [
+      {
+        "session_id": "S1",
+        "src_ip": "192.168.10.1",
+        "dst_ip": "203.0.113.50",
+        "predicted_traffic_type": "VoIP",
+        "traffic_confidence": 0.97,
+        "top_predictions": [
+          {
+            "traffic_type": "VoIP",
+            "probability": 0.451
+          },
+          {
+            "traffic_type": "Interactive/Remote Shell",
+            "probability": 0.2203
+          },
+          {
+            "traffic_type": "Keepalive/Idle",
+            "probability": 0.1364
+          }
+        ],
+        "traffic_features": {
+          "packet_count": 40,
+          "avg_packet_size": 148.5,
+          "min_packet_size": 134,
+          "max_packet_size": 166,
+          "avg_inter_arrival_ms": 20.0,
+          "duration_seconds": 0.78,
+          "bytes_total": 5940,
+          "upstream_ratio": 0.5
+        },
+        "metadata_inference": {
+          "observations": [
+            "Packet size distribution leaks the application class even though the payload is encrypted",
+            "Bidirectional and roughly symmetric (conversational pattern)",
+            "Regular, high-frequency cadence \u2014 consistent with real-time media",
+            "Short-lived session (<30s) \u2014 transactional or test traffic",
+            "Endpoint pair and tunnel timing are visible to any on-path observer",
+            "IKE identity payload is transmitted in the clear \u2014 peer identity is directly readable"
+          ],
+          "directionality": "Bidirectional and roughly symmetric (conversational pattern)",
+          "session_longevity": "Short-lived session (<30s) \u2014 transactional or test traffic",
+          "estimated_throughput_bps": 60923,
+          "avg_packet_size": 148.5,
+          "metadata_leakage_score": 0.85,
+          "privacy_risk": "High",
+          "note": "All inferences are derived from packet size, timing and direction only. No ESP payload was decrypted or inspected."
+        }
+      }
+    ],
+    "threat_matrix": {
+      "axes": {
+        "likelihood": [
+          "Low",
+          "Medium",
+          "High"
+        ],
+        "impact": [
+          "Low",
+          "Medium",
+          "High",
+          "Critical"
+        ]
+      },
+      "entries": [
+        {
+          "threat": "Offline decryption of captured tunnel traffic",
+          "category": "Encryption",
+          "likelihood": "High",
+          "impact": "Critical",
+          "severity": "High",
+          "related_findings": [
+            "F001"
+          ]
+        },
+        {
+          "threat": "Integrity forgery / packet tampering",
+          "category": "Hash",
+          "likelihood": "Medium",
+          "impact": "High",
+          "severity": "High",
+          "related_findings": [
+            "F002"
+          ]
+        },
+        {
+          "threat": "Key recovery via DH precomputation",
+          "category": "KeyExchange",
+          "likelihood": "Medium",
+          "impact": "Critical",
+          "severity": "High",
+          "related_findings": [
+            "F003"
+          ]
+        },
+        {
+          "threat": "Exploitation of deprecated IKEv1 weaknesses",
+          "category": "Protocol",
+          "likelihood": "High",
+          "impact": "Medium",
+          "severity": "High",
+          "related_findings": [
+            "F004"
+          ]
+        },
+        {
+          "threat": "PSK cracking leading to peer impersonation",
+          "category": "Authentication",
+          "likelihood": "High",
+          "impact": "High",
+          "severity": "Medium",
+          "related_findings": [
+            "F005"
+          ]
+        },
+        {
+          "threat": "Retrospective decryption after key compromise",
+          "category": "PFS",
+          "likelihood": "Medium",
+          "impact": "High",
+          "severity": "Medium",
+          "related_findings": [
+            "F006"
+          ]
+        },
+        {
+          "threat": "Packet replay injection",
+          "category": "ReplayProtection",
+          "likelihood": "Medium",
+          "impact": "Medium",
+          "severity": "Medium",
+          "related_findings": [
+            "F007"
+          ]
+        },
+        {
+          "threat": "Passive identity and topology mapping",
+          "category": "MetadataExposure",
+          "likelihood": "High",
+          "impact": "Low",
+          "severity": "Medium",
+          "related_findings": [
+            "F008"
+          ]
+        },
+        {
+          "threat": "Extended key exposure window",
+          "category": "Lifetime",
+          "likelihood": "Low",
+          "impact": "Medium",
+          "severity": "Low",
+          "related_findings": [
+            "F009"
+          ]
+        },
+        {
+          "threat": "Audit failure against hardening baseline",
+          "category": "Compliance",
+          "likelihood": "High",
+          "impact": "Medium",
+          "severity": "Medium",
+          "related_findings": [
+            "F010"
+          ]
+        }
+      ],
+      "cells": [
+        {
+          "likelihood": "Low",
+          "impact": "Low",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Low",
+          "impact": "Medium",
+          "count": 1,
+          "threats": [
+            "Extended key exposure window"
+          ]
+        },
+        {
+          "likelihood": "Low",
+          "impact": "High",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Low",
+          "impact": "Critical",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "Low",
+          "count": 0,
+          "threats": []
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "Medium",
+          "count": 1,
+          "threats": [
+            "Packet replay injection"
+          ]
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "High",
+          "count": 2,
+          "threats": [
+            "Integrity forgery / packet tampering",
+            "Retrospective decryption after key compromise"
+          ]
+        },
+        {
+          "likelihood": "Medium",
+          "impact": "Critical",
+          "count": 1,
+          "threats": [
+            "Key recovery via DH precomputation"
+          ]
+        },
+        {
+          "likelihood": "High",
+          "impact": "Low",
+          "count": 1,
+          "threats": [
+            "Passive identity and topology mapping"
+          ]
+        },
+        {
+          "likelihood": "High",
+          "impact": "Medium",
+          "count": 2,
+          "threats": [
+            "Exploitation of deprecated IKEv1 weaknesses",
+            "Audit failure against hardening baseline"
+          ]
+        },
+        {
+          "likelihood": "High",
+          "impact": "High",
+          "count": 1,
+          "threats": [
+            "PSK cracking leading to peer impersonation"
+          ]
+        },
+        {
+          "likelihood": "High",
+          "impact": "Critical",
+          "count": 1,
+          "threats": [
+            "Offline decryption of captured tunnel traffic"
+          ]
+        }
+      ]
+    },
+    "remediation_plan": [
+      {
+        "priority": 1,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "Encryption",
+        "action": "Renegotiate the IPsec proposal to AES-256-GCM (AEAD). If the peer cannot do GCM, use AES-256-CBC with a separate SHA-256 integrity algorithm, and remove DES/3DES from the allowed transform set entirely.",
+        "addresses": "F001"
+      },
+      {
+        "priority": 2,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "Hash",
+        "action": "Move the integrity algorithm to SHA-256 or above (SHA-384/SHA-512). Delete MD5 and SHA-1 transforms from both the IKE and ESP proposals.",
+        "addresses": "F002"
+      },
+      {
+        "priority": 3,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "KeyExchange",
+        "action": "Use DH group 14 (2048-bit MODP) as a minimum; prefer group 19/20 (ECP-256/384) or group 21. Remove groups 1, 2 and 5 from the policy.",
+        "addresses": "F003"
+      },
+      {
+        "priority": 4,
+        "timeline": "Short term (1-4 weeks)",
+        "area": "Protocol",
+        "action": "Migrate the tunnel to IKEv2. If IKEv1 must remain during transition, disable aggressive mode and permit main mode only.",
+        "addresses": "F004"
+      },
+      {
+        "priority": 5,
+        "timeline": "Planned (1-3 months)",
+        "area": "Authentication",
+        "action": "Migrate to certificate-based authentication (RSA/ECDSA) with a managed PKI. Where a PSK must remain, make it at least 32 random characters, unique per peer, and rotate it on a defined schedule.",
+        "addresses": "F005"
+      },
+      {
+        "priority": 6,
+        "timeline": "Planned (1-3 months)",
+        "area": "PFS",
+        "action": "Enable PFS on the child SA and pin it to DH group 14 or higher so each rekey performs a fresh Diffie-Hellman exchange.",
+        "addresses": "F006"
+      },
+      {
+        "priority": 7,
+        "timeline": "Planned (1-3 months)",
+        "area": "ReplayProtection",
+        "action": "Enable anti-replay on the SA and set the replay window to at least 1024 packets (larger for high-throughput or multi-queue links).",
+        "addresses": "F007"
+      },
+      {
+        "priority": 8,
+        "timeline": "Planned (1-3 months)",
+        "area": "MetadataExposure",
+        "action": "Use IKEv2 (which encrypts identity payloads) or IKEv1 main mode, and avoid FQDN/user-FQDN identities that disclose organisational detail.",
+        "addresses": "F008"
+      },
+      {
+        "priority": 9,
+        "timeline": "Planned (1-3 months)",
+        "area": "Compliance",
+        "action": "Align the proposal with the approved baseline: AES-256-GCM, SHA-256+, DH group 14/19+, IKEv2, PFS enabled, certificate authentication.",
+        "addresses": "F010"
+      },
+      {
+        "priority": 10,
+        "timeline": "Routine maintenance",
+        "area": "Lifetime",
+        "action": "Set the IKE SA lifetime to roughly 24 hours and the IPsec (child) SA lifetime to 1-8 hours, with a data-volume based rekey limit as well.",
+        "addresses": "F009"
+      }
+    ],
+    "detection_notes": [
+      "Alert on IKEv1 aggressive mode exchanges (UDP/500) originating from any gateway.",
+      "Flag ESP SAs whose sequence numbers reset or regress, which indicates replay exposure.",
+      "Baseline per-tunnel packet-size distributions; a shift can reveal an application change behind the tunnel.",
+      "Track IKE proposals offering DES/3DES/MD5/DH1/DH2 and treat any acceptance as a policy violation."
+    ],
+    "limitations": [
+      "Parameters that never appear on the wire (for example a locally configured SA lifetime that is not negotiated) are reported as Unknown.",
+      "Encapsulation mode and anti-replay status are inferred from ESP structure and sequence behaviour, not read from configuration.",
+      "Traffic classification is probabilistic and based only on size/timing metadata."
+    ],
+    "appendix": {
+      "severity_model": {
+        "Critical": 40.0,
+        "High": 22.0,
+        "Medium": 10.0,
+        "Low": 3.0
+      },
+      "schema_version": "1.0"
+    }
+  },
+  "ai_notes": "Rule-based analysis; no model call made."
+}
