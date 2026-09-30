@@ -1,20 +1,24 @@
-# IPsec VPN Security Analyser - full pipeline (backend + ai_engine + frontend)
+# IPsec VPN Security Analyser - full pipeline (backend + ai_engine + frontend).
+# Exact pins: this is the environment the test suite and CI run against.
+# Supported Python: 3.10 to 3.13 (numpy 2.2 has no wheels outside that range).
 
 # backend: pcap parsing
-scapy>=2.5.0
+scapy==2.7.0
 
 # ai_engine: traffic classifier. scikit-learn must match the version that saved
-# ai_engine/models/traffic_model.joblib; any other version makes the engine
-# discard the shipped model and retrain it on first use.
+# ai_engine/models/traffic_model.joblib; with any other version the engine
+# discards the shipped model and retrains it on first use. numpy, scipy and
+# joblib are pinned because loading that artifact depends on them too.
 scikit-learn==1.7.2
-numpy
-joblib
+numpy==2.2.6
+scipy==1.15.3
+joblib==1.6.0
 
 # ai_engine: optional Claude explanations (only used when ANTHROPIC_API_KEY is set)
-requests
+requests==2.34.2
 
 # frontend: dashboard
-streamlit>=1.38.0
+streamlit==1.64.0
 
 # frontend: executive report PDF export (optional - JSON download works without it)
-fpdf2>=2.7.0
+fpdf2==2.8.8

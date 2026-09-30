@@ -1,1 +1,3 @@
-scapy>=2.5.0
+# Backend only. Keep in step with the root requirements.txt
+# (tests/test_config.py fails if the pins disagree).
+scapy==2.7.0

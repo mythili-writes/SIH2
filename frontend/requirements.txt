@@ -1,2 +1,5 @@
-streamlit>=1.38.0
-fpdf2>=2.7.0
+# Dashboard only; it also needs the backend and ai_engine requirements.
+# Keep in step with the root requirements.txt
+# (tests/test_config.py fails if the pins disagree).
+streamlit==1.64.0
+fpdf2==2.8.8

@@ -1,4 +1,7 @@
-scikit-learn
-numpy
-joblib
-requests
+# ai_engine only. Keep in step with the root requirements.txt
+# (tests/test_config.py fails if the pins disagree).
+scikit-learn==1.7.2
+numpy==2.2.6
+scipy==1.15.3
+joblib==1.6.0
+requests==2.34.2

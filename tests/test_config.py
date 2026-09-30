@@ -78,3 +78,32 @@ def test_env_example_documents_every_variable_the_code_reads():
         documented = set(re.findall(r"^([A-Z_]+)=", fh.read(), re.MULTILINE))
     assert read, "the scan found no environment reads at all"
     assert read <= documented, "undocumented: %s" % sorted(read - documented)
+
+
+def _pins(path):
+    """{package: version} for every `name==version` line in a requirements file."""
+    pins = {}
+    with open(os.path.join(ROOT, path), encoding="utf-8") as fh:
+        for line in fh:
+            line = line.split("#", 1)[0].strip()
+            if "==" in line:
+                name, version = line.split("==", 1)
+                pins[name.strip().lower()] = version.strip()
+    return pins
+
+
+def test_every_dependency_is_pinned_exactly():
+    with open(os.path.join(ROOT, "requirements.txt"), encoding="utf-8") as fh:
+        lines = [line.split("#", 1)[0].strip() for line in fh]
+    requirements = [line for line in lines if line]
+    assert requirements and all("==" in line for line in requirements), requirements
+
+
+@pytest.mark.parametrize(
+    "component",
+    ["backend/requirements.txt", "frontend/requirements.txt", "ai_engine/requirements.txt"],
+)
+def test_component_requirements_agree_with_the_root(component):
+    root, sub = _pins("requirements.txt"), _pins(component)
+    assert sub, component
+    assert {name: root.get(name) for name in sub} == sub
