@@ -53,11 +53,13 @@ def check_keys(obj, expected, where, errors, optional=frozenset()):
 
 
 def check_enum(obj, key, allowed, where, errors):
+    """Record an error if obj[key] is present but not one of `allowed`."""
     if key in obj and obj[key] not in allowed:
         errors.append(f"{where}: {key}={obj[key]!r} is not one of {sorted(allowed)}")
 
 
 def check_contract_a(data):
+    """Return a list of Contract A violations in `data`; empty means valid."""
     errors = []
     if not check_keys(data, TOP_LEVEL_KEYS, "top level", errors, OPTIONAL_TOP_LEVEL_KEYS):
         return errors
@@ -92,6 +94,7 @@ def check_contract_a(data):
 
 
 def main():
+    """CLI: check one file (default test_analysis.json) and exit 1 on any violation."""
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).with_name("test_analysis.json")
     with open(path, encoding="utf-8") as f:
         data = json.load(f)

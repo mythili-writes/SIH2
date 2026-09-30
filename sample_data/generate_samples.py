@@ -73,6 +73,7 @@ def _payload(target_total, header_bytes):
 # --------------------------------------------------------------------------
 
 def build_weak():
+    """IPv4 IKEv1 Aggressive Mode session with every weakness the demo needs, plus VoIP-shaped ESP."""
     initiator, responder = "10.0.0.1", "203.0.113.9"
     icookie, rcookie = b"\xa1" * 8, b"\xb2" * 8
     packets = []
@@ -168,6 +169,7 @@ def build_weak():
 # --------------------------------------------------------------------------
 
 def build_strong():
+    """IPv4 IKEv2 session with AES-256-GCM, SHA-256, DH 14 and PFS, plus bulk-transfer ESP."""
     initiator, responder = "192.168.50.1", "198.51.100.20"
     ispi, rspi = b"\xc1" * 8, b"\xd2" * 8
     packets = []
@@ -269,6 +271,7 @@ def build_strong():
 # --------------------------------------------------------------------------
 
 def build_mixed():
+    """IPv6 IKEv1 Main Mode session in transport mode with mid-strength crypto, plus web-shaped ESP."""
     initiator, responder = "2001:db8::1", "2001:db8:100::20"
     icookie, rcookie = b"\xe5" * 8, b"\xf6" * 8
     packets = []
@@ -369,6 +372,7 @@ def build_mixed():
 
 
 def main():
+    """Write the three captures next to this script."""
     for name, builder in (
         ("sample_weak.pcap", build_weak),
         ("sample_strong.pcap", build_strong),

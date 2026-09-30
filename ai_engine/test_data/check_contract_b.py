@@ -29,18 +29,22 @@ TRAFFIC_TYPES = {"VoIP", "WhatsApp", "Email", "Web Browsing", "ICMP", "Video Str
 
 
 def is_str(value):
+    """True for a str."""
     return isinstance(value, str)
 
 
 def is_int(value):
+    """True for an int that is not a bool."""
     return isinstance(value, int) and not isinstance(value, bool)
 
 
 def is_number(value):
+    """True for a finite int or float that is not a bool."""
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def is_str_list(value):
+    """True for a list whose items are all str."""
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
@@ -57,17 +61,20 @@ def check_keys(obj, expected, where, errors):
 
 
 def check_enum(obj, key, allowed, where, errors):
+    """Record an error if obj[key] is present but not one of `allowed`."""
     if key in obj and obj[key] not in allowed:
         errors.append(f"{where}: {key}={obj[key]!r} is not one of {sorted(allowed)}")
 
 
 def check_type(obj, keys, predicate, label, where, errors):
+    """Record an error for each present key whose value fails `predicate`."""
     for key in keys:
         if key in obj and not predicate(obj[key]):
             errors.append(f"{where}: {key}={obj[key]!r} should be {label}")
 
 
 def check_range(obj, key, low, high, where, errors):
+    """Record an error if obj[key] is a number outside [low, high]."""
     if is_number(obj.get(key)) and not low <= obj[key] <= high:
         errors.append(f"{where}: {key}={obj[key]!r} is outside {low}-{high}")
 
@@ -81,6 +88,7 @@ def check_list(data, key, errors):
 
 
 def check_contract_b(data):
+    """Return a list of Contract B violations in `data`; empty means valid."""
     errors = []
     if not check_keys(data, TOP_LEVEL_KEYS, "top level", errors):
         return errors
@@ -163,6 +171,7 @@ def check_contract_b(data):
 
 
 def main():
+    """CLI: check one file (default test_report.json) and exit 1 on any violation."""
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).with_name("test_report.json")
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
