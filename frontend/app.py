@@ -129,6 +129,12 @@ table.matrix td { width: 120px; height: 58px; text-align: center; border-radius:
               padding: 8px 0 8px 12px; margin-top: 8px; }
 .kv { font-size: 13.5px; line-height: 1.65; }
 .kv b { color: #0b0b0b; }
+
+.prov { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;
+        font-weight: 600; color: #0b0b0b; white-space: nowrap; }
+.prov-observed { background: #f0efec; }
+.prov-inferred { background: #fcefd2; }
+.prov-unknown { background: #ffffff; border: 1px dashed #c9c8c2; color: #52514e; }
 </style>
 """
 
@@ -270,6 +276,65 @@ def safe_render(title, render, *args):
         )
 
 
+PROVENANCE_LABELS = {
+    "observed": "observed",
+    "inferred": "inferred",
+    "unknown": "not determined",
+}
+
+# Display names for the fields that carry provenance, in reading order.
+PROVENANCE_ROWS = [
+    ("protocol", "IKE version"),
+    ("exchange_mode", "Exchange mode"),
+    ("ipsec_protocol", "IPsec protocol"),
+    ("ipsec_mode", "IPsec mode"),
+    ("encryption", "Encryption"),
+    ("authentication", "Integrity"),
+    ("hash", "Hash / PRF"),
+    ("dh_group", "DH group"),
+    ("key_exchange", "Key exchange"),
+    ("auth_method", "Auth method"),
+    ("lifetime_seconds", "SA lifetime (s)"),
+    ("pfs_enabled", "PFS enabled"),
+    ("replay_protection", "Replay protection"),
+    ("nat_traversal", "NAT traversal"),
+    ("identity_exposed", "Identity exposed"),
+    ("traffic_features", "Traffic features"),
+]
+
+
+def prov_chip(status):
+    """Chip naming how a value was obtained; the word always accompanies the colour."""
+    status = status if status in PROVENANCE_LABELS else "unknown"
+    return '<span class="prov prov-%s">%s</span>' % (status, PROVENANCE_LABELS[status])
+
+
+def provenance_of(session, field):
+    """The {"status", "basis"} entry for one field, or {} if none was reported."""
+    return as_dict(as_dict(session.get("field_provenance")).get(field))
+
+
+def inferred_mark(session, field):
+    """A small "inferred" chip under a table value, with the basis on hover."""
+    entry = provenance_of(session, field)
+    if entry.get("status") != "inferred":
+        return ""
+    return '<br><span class="prov prov-inferred" title="%s">inferred</span>' % esc(
+        entry.get("basis")
+    )
+
+
+def provenance_totals(sessions):
+    """(observed, inferred, not determined) value counts across all sessions."""
+    totals = {"observed": 0, "inferred": 0, "unknown": 0}
+    for session in sessions:
+        for entry in as_dict(session.get("field_provenance")).values():
+            status = as_dict(entry).get("status")
+            if status in totals:
+                totals[status] += 1
+    return totals["observed"], totals["inferred"], totals["unknown"]
+
+
 def session_label(session_id):
     """Readable session reference for the UI."""
     return "Session %s" % session_id
@@ -278,6 +343,21 @@ def session_label(session_id):
 # --------------------------------------------------------------------------
 # tab bodies
 # --------------------------------------------------------------------------
+
+
+def observed_tile(report):
+    """Stat tile: how many reported values were read directly from the capture."""
+    sessions = [s for s in as_list(report.get("sessions")) if isinstance(s, dict)]
+    observed, inferred, unknown = provenance_totals(sessions)
+    total = observed + inferred + unknown
+    if not total:
+        return ("Observed directly", "-", "no provenance reported", "")
+    return (
+        "Observed directly",
+        "%d / %d" % (observed, total),
+        "values; %d inferred, %d not determined" % (inferred, unknown),
+        "",
+    )
 
 
 def render_overview(report, analysis):
@@ -315,6 +395,7 @@ def render_overview(report, analysis):
                 "%s capture" % analysis.get("ip_version", "-"),
                 "",
             ),
+            observed_tile(report),
             (
                 "Packets",
                 str(analysis.get("total_packets", 0)),
@@ -365,9 +446,16 @@ def render_findings(report, analysis):
                 "<b>%s</b>" % esc(f.get("issue")),
                 '<span class="mono">%s</span>' % esc(f.get("session_id")),
                 esc(f.get("risk_score")),
+                prov_chip(f.get("evidence_status")),
             ]
         )
-    viz_table(["ID", "Severity", "Category", "Issue", "Session", "Risk"], rows)
+    viz_table(["ID", "Severity", "Category", "Issue", "Session", "Risk", "Evidence"], rows)
+    inferred = [f for f in findings if f.get("evidence_status") == "inferred"]
+    if inferred:
+        st.caption(
+            "%d finding(s) rest on a value that was inferred rather than read from the capture; "
+            "open them below to see how." % len(inferred)
+        )
 
     st.write("")
     st.markdown("#### Detail and remediation")
@@ -386,6 +474,11 @@ def render_findings(report, analysis):
                 ),
                 unsafe_allow_html=True,
             )
+            if f.get("evidence_status") == "inferred":
+                st.warning(
+                    "Based on inferred data, not a directly observed value. %s"
+                    % (f.get("evidence_basis") or "")
+                )
             if evidence.get(f.get("finding_id")):
                 st.markdown("**Evidence**")
                 st.code(evidence[f.get("finding_id")], language=None)
@@ -419,15 +512,19 @@ def render_sessions(report):
                 % (esc(s.get("src_ip")), esc(s.get("dst_ip"))),
                 '%s<br><span class="muted">%s</span>'
                 % (esc(fmt(s.get("protocol"))), esc(fmt(s.get("exchange_mode")))),
-                '%s<br><span class="muted">%s</span>'
-                % (esc(fmt(s.get("ipsec_protocol"))), esc(fmt(s.get("ipsec_mode")))),
+                '%s<br><span class="muted">%s</span>%s'
+                % (
+                    esc(fmt(s.get("ipsec_protocol"))),
+                    esc(fmt(s.get("ipsec_mode"))),
+                    inferred_mark(s, "ipsec_mode"),
+                ),
                 '%s<br><span class="muted">%s</span>'
                 % (esc(fmt(s.get("encryption"))), esc(fmt(s.get("authentication")))),
                 esc(fmt(s.get("hash"))),
                 '%s<br><span class="muted">%s</span>'
                 % (esc(fmt(s.get("dh_group"))), esc(fmt(s.get("key_exchange")))),
-                esc(fmt(s.get("pfs_enabled"))),
-                esc(fmt(s.get("replay_protection"))),
+                esc(fmt(s.get("pfs_enabled"))) + inferred_mark(s, "pfs_enabled"),
+                esc(fmt(s.get("replay_protection"))) + inferred_mark(s, "replay_protection"),
                 '%s <span class="muted">%d</span>' % (sev_chip(level), score),
             ]
         )
@@ -448,37 +545,42 @@ def render_sessions(report):
     )
     st.caption("Session risk applies the engine's overall-risk formula to that session's findings.")
 
+    st.caption(
+        "An 'inferred' mark means the value was deduced (a heuristic, a protocol default or "
+        "packet behaviour) rather than read from the capture; hover it for the reason."
+    )
+
     st.write("")
-    with st.expander("All negotiated parameters"):
-        for s in sessions:
-            st.markdown(
-                "**%s** - %s &rarr; %s"
-                % (session_label(s.get("session_id")), s.get("src_ip"), s.get("dst_ip"))
+    st.markdown("#### Where each value came from")
+    for s in sessions:
+        observed, inferred, unknown = provenance_totals([s])
+        with st.expander(
+            "%s - %d observed, %d inferred, %d not determined"
+            % (session_label(s.get("session_id")), observed, inferred, unknown),
+            expanded=inferred > 0 and len(sessions) == 1,
+        ):
+            rows = []
+            for field, label in PROVENANCE_ROWS:
+                entry = provenance_of(s, field)
+                value = (
+                    "%s packets" % as_dict(s.get("traffic_features")).get("packet_count", 0)
+                    if field == "traffic_features"
+                    else fmt(s.get(field))
+                )
+                rows.append(
+                    [
+                        esc(label),
+                        '<span class="mono">%s</span>' % esc(value),
+                        prov_chip(entry.get("status")),
+                        esc(entry.get("basis") or "the parser did not report this"),
+                    ]
+                )
+            viz_table(["Field", "Value", "Obtained", "Basis"], rows)
+            st.caption(
+                "Parser confidence for this session: %s. It counts how many key fields have "
+                "a value and does not distinguish observed from inferred values, which is "
+                "what this table is for." % fmt(s.get("confidence"))
             )
-            fields = [
-                ("IKE version", fmt(s.get("protocol"))),
-                ("Exchange mode", fmt(s.get("exchange_mode"))),
-                ("IPsec protocol", fmt(s.get("ipsec_protocol"))),
-                ("IPsec mode", fmt(s.get("ipsec_mode"))),
-                ("Encryption", fmt(s.get("encryption"))),
-                ("Integrity", fmt(s.get("authentication"))),
-                ("Hash", fmt(s.get("hash"))),
-                ("DH group", fmt(s.get("dh_group"))),
-                ("Key exchange", fmt(s.get("key_exchange"))),
-                ("Auth method", fmt(s.get("auth_method"))),
-                ("SA lifetime (s)", fmt(s.get("lifetime_seconds"))),
-                ("PFS enabled", fmt(s.get("pfs_enabled"))),
-                ("Replay protection", fmt(s.get("replay_protection"))),
-                ("NAT traversal", fmt(s.get("nat_traversal"))),
-                ("Identity exposed", fmt(s.get("identity_exposed"))),
-                ("Parser confidence", fmt(s.get("confidence"))),
-            ]
-            st.markdown(
-                '<div class="kv">%s</div>'
-                % " &nbsp;|&nbsp; ".join("<b>%s:</b> %s" % (esc(k), esc(v)) for k, v in fields),
-                unsafe_allow_html=True,
-            )
-            st.write("")
 
 
 def render_traffic(report):
@@ -746,6 +848,16 @@ def render_technical(report, analysis):
         "agreed transform set, ESP/AH flows are measured for mode, sequence behaviour "
         "and traffic features, and a deterministic rule engine raises the findings. "
         "ESP payloads are never decrypted."
+    )
+
+    st.markdown("#### Data quality: observed vs inferred")
+    notes = per_session_lines(technical.get("uncertainty_notes"))
+    for line in notes or ["Not available."]:
+        st.markdown("- %s" % line)
+    st.caption(
+        "Observed values were read from plaintext protocol fields. Inferred values come from "
+        "heuristics, protocol defaults or packet behaviour, and the findings that rest on them "
+        "are marked. The AI confidence score does not make this distinction."
     )
 
     for key, title in TECHNICAL_SECTIONS:

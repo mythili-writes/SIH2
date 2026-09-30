@@ -37,9 +37,13 @@ FINDING_KEYS = (
     "explanation",
     "recommendation",
     "reference",
-    # Additive (see docs/CONTRACTS.md): a strongSwan ipsec.conf fix, "" if none applies.
+    # Additive (see docs/CONTRACTS.md): a strongSwan ipsec.conf fix, "" if none applies,
+    # and whether the finding rests on observed or inferred data.
     "remediation_snippet",
+    "evidence_status",
+    "evidence_basis",
 )
+EVIDENCE_STATUSES = ("observed", "inferred", "unknown")
 TECHNICAL_KEYS = (
     "protocol_identification",
     "cipher_suite_analysis",
@@ -108,6 +112,13 @@ def _contract_finding(finding):
     result = {key: finding.get(key) for key in FINDING_KEYS}
     if result["severity"] not in SEVERITIES:
         result["severity"] = "Low"
+    # Contract A input without provenance: say so rather than imply observation.
+    if result["evidence_status"] not in EVIDENCE_STATUSES:
+        result["evidence_status"] = "unknown"
+    if not isinstance(result["evidence_basis"], str):
+        result["evidence_basis"] = ""
+    if not isinstance(result["remediation_snippet"], str):
+        result["remediation_snippet"] = ""
     return result
 
 
@@ -165,6 +176,11 @@ def _build(analysis):
             sessions, findings, analysis.get("ip_version") or "Unknown"
         ),
         {key: "Not available." for key in TECHNICAL_KEYS},
+    )
+    technical_report["uncertainty_notes"] = _safe(
+        "uncertainty notes",
+        lambda: report_builder.build_uncertainty_notes(sessions),
+        "Not available.",
     )
     summary = _safe(
         "summary",

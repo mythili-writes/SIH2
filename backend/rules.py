@@ -336,9 +336,53 @@ def evaluate_session(session, builder):
         )
 
 
+# The session fields each rule reads. A finding is only as certain as the least
+# certain of these, so its evidence_status comes from their provenance.
+FIELDS_BY_CATEGORY = {
+    "Encryption": ("encryption",),
+    "Hash": ("hash",),
+    "KeyExchange": ("dh_group",),
+    "Authentication": ("auth_method",),
+    "Mode": ("ipsec_mode",),
+    "Lifetime": ("lifetime_seconds",),
+    "PFS": ("pfs_enabled",),
+    "Protocol": ("protocol", "exchange_mode"),
+    "ReplayProtection": ("replay_protection",),
+    "MetadataExposure": ("identity_exposed",),
+    "Compliance": ("encryption", "hash", "dh_group"),
+}
+_CERTAINTY = {"observed": 2, "inferred": 1}
+
+
+def _attach_evidence_status(finding, session):
+    """Add evidence_status / evidence_basis from the session's field provenance.
+
+    Uses the weakest status among the fields the rule reads, ignoring fields that
+    were not determined (a rule never fires on those; Compliance, for example,
+    can fail on the cipher alone). Leaves the finding unchanged when the session
+    carries no provenance, so Contract A input from other producers still works.
+    """
+    provenance = session.get("field_provenance")
+    if not isinstance(provenance, dict):
+        return
+    candidates = []
+    for field in FIELDS_BY_CATEGORY.get(finding["category"], ()):
+        entry = provenance.get(field)
+        if isinstance(entry, dict) and entry.get("status") in _CERTAINTY:
+            candidates.append((_CERTAINTY[entry["status"]], field, entry))
+    if not candidates:
+        return
+    _rank, field, entry = min(candidates, key=lambda item: item[0])
+    finding["evidence_status"] = entry["status"]
+    finding["evidence_basis"] = "%s: %s" % (field, entry.get("basis", ""))
+
+
 def evaluate(sessions):
     """Run the rule engine over every session. Returns a Contract A findings list."""
     builder = _FindingBuilder()
     for session in sessions or []:
+        start = len(builder.items)
         evaluate_session(session, builder)
+        for finding in builder.items[start:]:
+            _attach_evidence_status(finding, session)
     return builder.items

@@ -90,3 +90,12 @@ def test_a_broken_tab_does_not_take_down_the_others(monkeypatch):
     assert not at.exception
     assert len(at.error) == 1 and "Traffic Analysis" in at.error[0].value
     assert len(at.get("download_button")) == expected_downloads(at)  # later tabs still rendered
+
+
+def test_inferred_values_are_visibly_caveated():
+    at = analyse_sample("Weak")
+    assert any("Based on inferred data" in w.value for w in at.warning)
+    markdown = " ".join(m.value for m in at.markdown)
+    assert "Data quality: observed vs inferred" in markdown
+    assert "Observed directly" in markdown
+    assert 'class="prov prov-inferred"' in markdown

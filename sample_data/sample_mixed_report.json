@@ -27,7 +27,8 @@
     "cipher_suite_analysis": "Session S1: AES-128-CBC + HMAC-SHA1, hash SHA1, DH group 5",
     "sa_analysis": "Session S1: lifetime 120 s, replay protection on, PFS on, NAT-T off",
     "metadata_exposure": "No session sends its peer identity in clear | Traffic type can still be inferred from packet sizes and timing even though ESP is encrypted",
-    "compliance_notes": "Session S1: meets the checked NIST guidance"
+    "compliance_notes": "Session S1: meets the checked NIST guidance",
+    "uncertainty_notes": "Session S1: 13 of 16 values observed directly; inferred, not observed: replay_protection (ESP sequence numbers increased monotonically across 34 packets; the receiver's replay window itself is not visible on the wire); nat_traversal (IKE was seen only on UDP/500 in this capture); identity_exposed (main mode sends identities encrypted, and none was seen in the clear)"
   },
   "traffic_analysis": [
     {
@@ -127,7 +128,9 @@
       "explanation": "CBC mode still keeps data secret, but it has no built-in integrity check and depends on a separate hash.",
       "recommendation": "Prefer AES-GCM, which encrypts and protects integrity in one step.",
       "reference": "RFC 8221",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F001 (Encryption)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F001 (Encryption)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n",
+      "evidence_status": "observed",
+      "evidence_basis": "encryption: encryption attribute of the IKE proposal"
     },
     {
       "finding_id": "F002",
@@ -139,7 +142,9 @@
       "explanation": "SHA-1 is a weak hash and practical collision attacks against it exist.",
       "recommendation": "Use SHA-256 or stronger.",
       "reference": "NIST SP 800-131A",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F002 (Hash)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F002 (Hash)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n",
+      "evidence_status": "observed",
+      "evidence_basis": "hash: hash attribute of the IKE proposal"
     },
     {
       "finding_id": "F003",
@@ -151,7 +156,9 @@
       "explanation": "DH group 5 uses a 1536-bit key, which is below current security guidance.",
       "recommendation": "Use DH group 14, 19 or 20.",
       "reference": "RFC 8247",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F003 (KeyExchange)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F003 (KeyExchange)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n",
+      "evidence_status": "observed",
+      "evidence_basis": "dh_group: group attribute of the IKE proposal"
     },
     {
       "finding_id": "F004",
@@ -163,7 +170,9 @@
       "explanation": "IKEv1 is a legacy protocol with known weaknesses and is no longer recommended.",
       "recommendation": "Migrate to IKEv2.",
       "reference": "RFC 8247",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F004 (Protocol)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # IKEv1 is deprecated (RFC 9395)\n    keyexchange=ikev2\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F004 (Protocol)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # IKEv1 is deprecated (RFC 9395)\n    keyexchange=ikev2\n",
+      "evidence_status": "observed",
+      "evidence_basis": "protocol: version field of the IKE header"
     },
     {
       "finding_id": "F005",
@@ -175,7 +184,9 @@
       "explanation": "The key lifetime is outside the normal range, so a key is used for too long or is changed too often.",
       "recommendation": "Use 28800 seconds for the IKE SA and 3600 seconds for the IPsec SA.",
       "reference": "NIST SP 800-77r1",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F005 (Lifetime)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): ikelifetime=120s\n    # 28800 s for the IKE SA\n    ikelifetime=8h\n    # 3600 s for the IPsec SA\n    lifetime=1h\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F005 (Lifetime)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): ikelifetime=120s\n    # 28800 s for the IKE SA\n    ikelifetime=8h\n    # 3600 s for the IPsec SA\n    lifetime=1h\n",
+      "evidence_status": "observed",
+      "evidence_basis": "lifetime_seconds: life duration attribute of the IKE proposal"
     },
     {
       "finding_id": "F006",
@@ -187,7 +198,9 @@
       "explanation": "Transport mode leaves the original IP headers visible, so eavesdroppers can see which hosts are talking.",
       "recommendation": "Use tunnel mode for site-to-site VPNs.",
       "reference": "NIST SP 800-77r1",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F006 (Mode)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): type=transport\n    # tunnel mode also encrypts the inner IP header\n    type=tunnel\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F006 (Mode)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): type=transport\n    # tunnel mode also encrypts the inner IP header\n    type=tunnel\n",
+      "evidence_status": "observed",
+      "evidence_basis": "ipsec_mode: encapsulation mode attribute of the quick mode proposal"
     },
     {
       "finding_id": "F007",
@@ -199,7 +212,9 @@
       "explanation": "This cryptographic suite is not on the approved list, so the connection does not meet compliance rules.",
       "recommendation": "Use a NIST-approved suite, such as AES-256-GCM with SHA-256 and DH group 19 or 20.",
       "reference": "NIST SP 800-77r1",
-      "remediation_snippet": "# strongSwan ipsec.conf: fix for F007 (Compliance)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F007 (Compliance)\n# Session S1, 2001:db8::1 <-> 2001:db8:100::20. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=aes128-sha1-modp1536\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n",
+      "evidence_status": "observed",
+      "evidence_basis": "encryption: encryption attribute of the IKE proposal"
     }
   ],
   "sessions": [
@@ -232,6 +247,72 @@
         "duration_seconds": 5.881814,
         "bytes_total": 23340,
         "upstream_ratio": 0.353
+      },
+      "field_provenance": {
+        "protocol": {
+          "status": "observed",
+          "basis": "version field of the IKE header"
+        },
+        "exchange_mode": {
+          "status": "observed",
+          "basis": "exchange type in the IKE header"
+        },
+        "ipsec_protocol": {
+          "status": "observed",
+          "basis": "ESP/AH packets on the wire"
+        },
+        "ipsec_mode": {
+          "status": "observed",
+          "basis": "encapsulation mode attribute of the quick mode proposal"
+        },
+        "encryption": {
+          "status": "observed",
+          "basis": "encryption attribute of the IKE proposal"
+        },
+        "authentication": {
+          "status": "observed",
+          "basis": "integrity attribute of the quick mode proposal"
+        },
+        "hash": {
+          "status": "observed",
+          "basis": "hash attribute of the IKE proposal"
+        },
+        "dh_group": {
+          "status": "observed",
+          "basis": "group attribute of the IKE proposal"
+        },
+        "key_exchange": {
+          "status": "observed",
+          "basis": "derived from the DH group number"
+        },
+        "auth_method": {
+          "status": "observed",
+          "basis": "authentication attribute of the IKE proposal"
+        },
+        "lifetime_seconds": {
+          "status": "observed",
+          "basis": "life duration attribute of the IKE proposal"
+        },
+        "pfs_enabled": {
+          "status": "observed",
+          "basis": "the quick mode proposal includes a DH group"
+        },
+        "replay_protection": {
+          "status": "inferred",
+          "basis": "ESP sequence numbers increased monotonically across 34 packets; the receiver's replay window itself is not visible on the wire"
+        },
+        "nat_traversal": {
+          "status": "inferred",
+          "basis": "IKE was seen only on UDP/500 in this capture"
+        },
+        "identity_exposed": {
+          "status": "inferred",
+          "basis": "main mode sends identities encrypted, and none was seen in the clear"
+        },
+        "traffic_features": {
+          "status": "observed",
+          "basis": "measured from 34 ESP/AH packets (sizes and timing only)"
+        }
       }
     }
   ],

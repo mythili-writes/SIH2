@@ -241,6 +241,39 @@ def build_technical_report(sessions, findings, ip_version):
     }
 
 
+def build_uncertainty_notes(sessions):
+    """Per session: how many values were observed directly, which were inferred and why.
+
+    One "Session N: ..." part per session joined with " | ", like the other
+    technical report strings. Built from sessions[].field_provenance.
+    """
+    sessions = [s for s in sessions if isinstance(s, dict)]
+    if not sessions:
+        return NO_SESSIONS_TEXT
+
+    parts = []
+    for s in sessions:
+        sid = _text(s.get("session_id"))
+        provenance = s.get("field_provenance")
+        if not isinstance(provenance, dict) or not provenance:
+            parts.append(f"Session {sid}: the parser did not report how each value was obtained")
+            continue
+        entries = [(f, e) for f, e in provenance.items() if isinstance(e, dict)]
+        observed = [f for f, e in entries if e.get("status") == "observed"]
+        inferred = [(f, e.get("basis") or "") for f, e in entries if e.get("status") == "inferred"]
+        unknown = [f for f, e in entries if e.get("status") == "unknown"]
+
+        text = f"Session {sid}: {len(observed)} of {len(entries)} values observed directly"
+        if inferred:
+            text += "; inferred, not observed: " + "; ".join(
+                f"{f} ({basis})" for f, basis in inferred
+            )
+        if unknown:
+            text += "; not determined: " + ", ".join(unknown)
+        parts.append(text)
+    return " | ".join(parts)
+
+
 def build_summary(risk_level, findings, traffic_analysis):
     """Return one plain sentence describing the overall result."""
     if findings:

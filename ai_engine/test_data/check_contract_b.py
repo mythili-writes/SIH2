@@ -54,7 +54,9 @@ FINDING_KEYS = {
 # Additive keys (docs/CONTRACTS.md): allowed but not required, so reports
 # written before they existed still pass.
 OPTIONAL_TOP_LEVEL_KEYS = {"remediation_config"}
-OPTIONAL_FINDING_KEYS = {"remediation_snippet"}
+OPTIONAL_FINDING_KEYS = {"remediation_snippet", "evidence_status", "evidence_basis"}
+OPTIONAL_TECHNICAL_KEYS = {"uncertainty_notes"}
+EVIDENCE_STATUSES = {"observed", "inferred", "unknown"}
 REMEDIATION_KEYS = {"session_id", "snippet"}
 
 LEVELS = {"Critical", "High", "Medium", "Low"}
@@ -163,10 +165,19 @@ def check_contract_b(data):
         )
 
     if "technical_report" in data and check_keys(
-        data["technical_report"], TECHNICAL_KEYS, "technical_report", errors
+        data["technical_report"],
+        TECHNICAL_KEYS,
+        "technical_report",
+        errors,
+        OPTIONAL_TECHNICAL_KEYS,
     ):
         check_type(
-            data["technical_report"], TECHNICAL_KEYS, is_str, "a string", "technical_report", errors
+            data["technical_report"],
+            TECHNICAL_KEYS | OPTIONAL_TECHNICAL_KEYS,
+            is_str,
+            "a string",
+            "technical_report",
+            errors,
         )
 
     sessions = check_list(data, "sessions", errors)
@@ -207,7 +218,10 @@ def check_contract_b(data):
         where = f"findings[{i}]"
         if not check_keys(finding, FINDING_KEYS, where, errors, OPTIONAL_FINDING_KEYS):
             continue
-        check_type(finding, ["remediation_snippet"], is_str, "a string", where, errors)
+        check_type(
+            finding, ["remediation_snippet", "evidence_basis"], is_str, "a string", where, errors
+        )
+        check_enum(finding, "evidence_status", EVIDENCE_STATUSES, where, errors)
         finding_ids.add(finding.get("finding_id"))
         check_type(
             finding,

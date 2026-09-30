@@ -18,6 +18,10 @@ TOP_LEVEL_KEYS = {
 }
 # Additive keys: allowed but not required, so older files without them still pass.
 OPTIONAL_TOP_LEVEL_KEYS = {"parse_warnings"}
+OPTIONAL_SESSION_KEYS = {"field_provenance"}
+OPTIONAL_FINDING_KEYS = {"evidence_status", "evidence_basis"}
+PROVENANCE_STATUSES = {"observed", "inferred", "unknown"}
+PROVENANCE_ENTRY_KEYS = {"status", "basis"}
 PACKET_SUMMARY_KEYS = {"ike_packets", "esp_packets", "ah_packets", "other_packets"}
 SESSION_KEYS = {
     "session_id",
@@ -112,9 +116,17 @@ def check_contract_a(data):
     session_ids = set()
     for i, session in enumerate(data.get("sessions", [])):
         where = f"sessions[{i}]"
-        if not check_keys(session, SESSION_KEYS, where, errors):
+        if not check_keys(session, SESSION_KEYS, where, errors, OPTIONAL_SESSION_KEYS):
             continue
         session_ids.add(session.get("session_id"))
+        provenance = session.get("field_provenance", {})
+        if not isinstance(provenance, dict):
+            errors.append(f"{where}: field_provenance should be an object")
+            provenance = {}
+        for field, entry in provenance.items():
+            p_where = f"{where}.field_provenance.{field}"
+            if check_keys(entry, PROVENANCE_ENTRY_KEYS, p_where, errors):
+                check_enum(entry, "status", PROVENANCE_STATUSES, p_where, errors)
         check_enum(session, "ipsec_protocol", IPSEC_PROTOCOLS, where, errors)
         if "traffic_features" in session:
             check_keys(
@@ -126,9 +138,10 @@ def check_contract_a(data):
 
     for i, finding in enumerate(data.get("findings", [])):
         where = f"findings[{i}]"
-        if not check_keys(finding, FINDING_KEYS, where, errors):
+        if not check_keys(finding, FINDING_KEYS, where, errors, OPTIONAL_FINDING_KEYS):
             continue
         check_enum(finding, "severity", SEVERITIES, where, errors)
+        check_enum(finding, "evidence_status", PROVENANCE_STATUSES, where, errors)
         check_enum(finding, "category", CATEGORIES, where, errors)
         if "session_id" in finding and finding["session_id"] not in session_ids:
             errors.append(

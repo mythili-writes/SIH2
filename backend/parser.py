@@ -63,6 +63,39 @@ PCAPNG_BYTE_ORDER = (b"\x1a\x2b\x3c\x4d", b"\x4d\x3c\x2b\x1a")
 # A record longer than this (or than the file's snap length, if larger) is corrupt.
 MAX_RECORD_BYTES = 262144
 
+# Field provenance (Contract A sessions[].field_provenance): how each value was
+# obtained, so reports can caveat inferred values instead of presenting every
+# field with equal confidence.
+OBSERVED = "observed"  # read from a plaintext protocol field, or the absence of a
+#                        payload in a message that was fully readable
+INFERRED = "inferred"  # a heuristic, a protocol default, or behavioural evidence
+NOT_DETERMINED = "unknown"
+
+PROVENANCE_FIELDS = (
+    "protocol",
+    "exchange_mode",
+    "ipsec_protocol",
+    "ipsec_mode",
+    "encryption",
+    "authentication",
+    "hash",
+    "dh_group",
+    "key_exchange",
+    "auth_method",
+    "lifetime_seconds",
+    "pfs_enabled",
+    "replay_protection",
+    "nat_traversal",
+    "identity_exposed",
+    "traffic_features",
+)
+
+# Basis for a known value when no more specific note was recorded.
+DEFAULT_OBSERVED_BASIS = {
+    "protocol": "version field of the IKE header",
+    "exchange_mode": "exchange type in the IKE header",
+}
+
 IKE_PORTS = (500, 4500)
 
 # IKEv1 ISAKMP exchange types -> human label.
@@ -202,6 +235,11 @@ NOTIFY_NAT_DETECTION = (16388, 16389)
 # --------------------------------------------------------------------------
 # small helpers
 # --------------------------------------------------------------------------
+
+
+def _note(state, field, status, basis):
+    """Record how `field` got its current value; the latest assignment wins."""
+    state["notes"][field] = {"status": status, "basis": basis}
 
 
 def _ip_layer(pkt):
@@ -364,6 +402,7 @@ def _parse_ikev1(raw, state, pkt_meta):
             if not encrypted:
                 # An ID payload readable on the wire is a real identity leak.
                 state["identity_exposed"] = True
+                _note(state, "identity_exposed", OBSERVED, "an ID payload was sent in cleartext")
                 try:
                     state["identity_values"].add(repr(bytes(layer.IdentData)[:64]))
                 except Exception:
@@ -388,16 +427,20 @@ def _parse_ikev1(raw, state, pkt_meta):
 
     if quick_mode and saw_ke_here:
         state["pfs_enabled"] = True
+        _note(state, "pfs_enabled", OBSERVED, "quick mode carried a KE payload")
     elif quick_mode and not encrypted and state["pfs_enabled"] is None:
         # Readable quick mode with no KE payload means PFS was not requested.
         state["pfs_enabled"] = False
+        _note(state, "pfs_enabled", OBSERVED, "quick mode was readable and carried no KE payload")
 
     if saw_id_here and encrypted and state["identity_exposed"] is None:
         state["identity_exposed"] = False
+        _note(state, "identity_exposed", OBSERVED, "the ID payload was in an encrypted message")
 
     state["ike_packets"] += 1
     if pkt_meta.get("port") == 4500:
         state["nat_traversal"] = True
+        _note(state, "nat_traversal", OBSERVED, "IKE was carried on UDP/4500")
 
 
 def _apply_ikev1_phase1(state, attrs):
@@ -405,24 +448,31 @@ def _apply_ikev1_phase1(state, attrs):
     if enc is not None:
         name = IKEV1_ENC.get(str(enc), str(enc).upper())
         state["encryption"] = _norm_aes(name, attrs.get("KeyLength"))
+        _note(state, "encryption", OBSERVED, "encryption attribute of the IKE proposal")
 
     hsh = attrs.get("Hash")
     if hsh is not None:
         state["hash"] = IKEV1_HASH.get(str(hsh), str(hsh).upper())
+        _note(state, "hash", OBSERVED, "hash attribute of the IKE proposal")
 
     grp = attrs.get("GroupDesc")
     if grp is not None:
         state["dh_group"] = DH_LABEL_TO_NUM.get(str(grp), grp if isinstance(grp, int) else None)
+        _note(state, "dh_group", OBSERVED, "group attribute of the IKE proposal")
 
     auth = attrs.get("Authentication")
     if auth is not None:
         state["auth_method"] = IKEV1_AUTH.get(str(auth), str(auth))
+        _note(state, "auth_method", OBSERVED, "authentication attribute of the IKE proposal")
 
     life_type = attrs.get("LifeType")
     duration = attrs.get("LifeDuration")
     if duration is not None and isinstance(duration, int):
         if life_type is None or str(life_type).lower().startswith("second"):
             state["lifetime_seconds"] = duration
+            _note(
+                state, "lifetime_seconds", OBSERVED, "life duration attribute of the IKE proposal"
+            )
 
 
 def _apply_ikev1_phase2(state, attrs):
@@ -434,19 +484,26 @@ def _apply_ikev1_phase2(state, attrs):
             state["ipsec_mode"] = "Transport"
         elif "Tunnel" in text:
             state["ipsec_mode"] = "Tunnel"
+        _note(
+            state, "ipsec_mode", OBSERVED, "encapsulation mode attribute of the quick mode proposal"
+        )
 
     alg = attrs.get("AuthenticationAlgorithm")
     if alg is not None:
         state["authentication"] = IPSEC_INTEGRITY_NAME.get(str(alg), str(alg).upper())
+        _note(state, "authentication", OBSERVED, "integrity attribute of the quick mode proposal")
         if state["hash"] == UNKNOWN:
             state["hash"] = IPSEC_AUTH_ALG.get(str(alg), str(alg).upper())
+            _note(state, "hash", OBSERVED, "quick mode integrity attribute (no IKE hash was seen)")
 
     grp = attrs.get("GroupDesc")
     if grp is not None:
         # A group in the quick mode proposal means PFS was requested.
         state["pfs_enabled"] = True
+        _note(state, "pfs_enabled", OBSERVED, "the quick mode proposal includes a DH group")
         if state["dh_group"] is None:
             state["dh_group"] = DH_LABEL_TO_NUM.get(str(grp))
+            _note(state, "dh_group", OBSERVED, "group attribute of the quick mode proposal")
 
     life_type = attrs.get("LifeType")
     duration = attrs.get("LifeDuration")
@@ -457,6 +514,12 @@ def _apply_ikev1_phase2(state, attrs):
         and (life_type is None or str(life_type).lower().startswith("second"))
     ):
         state["lifetime_seconds"] = duration
+        _note(
+            state,
+            "lifetime_seconds",
+            OBSERVED,
+            "life duration attribute of the quick mode proposal",
+        )
 
 
 # --------------------------------------------------------------------------
@@ -493,16 +556,19 @@ def _parse_ikev2(raw, state, pkt_meta):
             group = getattr(layer, "group", None)
             if state["dh_group"] is None and isinstance(group, int):
                 state["dh_group"] = group
+                _note(state, "dh_group", OBSERVED, "group field of the KE payload")
         elif isinstance(layer, ikev2.IKEv2_Notify):
             ntype = int(getattr(layer, "type", 0) or 0)
             if ntype == NOTIFY_USE_TRANSPORT_MODE:
                 state["ipsec_mode"] = "Transport"
+                _note(state, "ipsec_mode", OBSERVED, "USE_TRANSPORT_MODE notify")
             elif ntype in NOTIFY_NAT_DETECTION:
                 state["nat_detection_seen"] = True
         elif isinstance(layer, (ikev2.IKEv2_IDi, ikev2.IKEv2_IDr)):
             # IKEv2 carries IDi/IDr inside the encrypted SK payload; seeing one
             # in the clear means the identity really is exposed.
             state["identity_exposed"] = True
+            _note(state, "identity_exposed", OBSERVED, "an IDi/IDr payload was sent in cleartext")
         elif isinstance(layer, ikev2.IKEv2_AUTH):
             auth_type = int(getattr(layer, "auth_type", 0) or 0)
             label_auth = ikev2.IKEv2AuthenticationTypes.get(auth_type)
@@ -510,6 +576,13 @@ def _parse_ikev2(raw, state, pkt_meta):
                 state["auth_method"] = "Pre-Shared Key"
             elif label_auth:
                 state["auth_method"] = label_auth
+            if label_auth:
+                _note(
+                    state,
+                    "auth_method",
+                    OBSERVED,
+                    "method field of an AUTH payload seen in the clear (real IKEv2 encrypts it)",
+                )
         elif isinstance(layer, ikev2.IKEv2_Encrypted):
             state["saw_encrypted_payload"] = True
         elif isinstance(layer, ikev2.IKEv2_SA):
@@ -523,10 +596,12 @@ def _parse_ikev2(raw, state, pkt_meta):
 
     if child_sa and saw_ke_here:
         state["pfs_enabled"] = True
+        _note(state, "pfs_enabled", OBSERVED, "CREATE_CHILD_SA carried a KE payload")
 
     state["ike_packets"] += 1
     if pkt_meta.get("port") == 4500:
         state["nat_traversal"] = True
+        _note(state, "nat_traversal", OBSERVED, "IKE was carried on UDP/4500")
 
 
 def _apply_ikev2_proposal(state, proposal, is_child):
@@ -545,11 +620,13 @@ def _apply_ikev2_proposal(state, proposal, is_child):
 
         if ttype == 1:  # Encryption
             state["encryption"] = _ikev2_cipher_name(int(tid), klen)
+            _note(state, "encryption", OBSERVED, "encryption transform of the IKEv2 proposal")
             if int(tid) in IKEV2_AEAD:
                 state["aead"] = True
                 child_aead = child_aead or is_child
         elif ttype == 3:  # Integrity
             state["hash"] = IKEV2_INTEG.get(int(tid), UNKNOWN)
+            _note(state, "hash", OBSERVED, "integrity transform of the IKEv2 proposal")
             if is_child:
                 child_integrity = IKEV2_INTEG_NAME.get(int(tid), UNKNOWN)
         elif ttype == 2 and state["hash"] == UNKNOWN:
@@ -565,13 +642,22 @@ def _apply_ikev2_proposal(state, proposal, is_child):
                 state["hash"] = "SHA1"
             elif "MD5" in prf:
                 state["hash"] = "MD5"
+            if state["hash"] != UNKNOWN:
+                _note(
+                    state,
+                    "hash",
+                    OBSERVED,
+                    "PRF transform (AEAD suites negotiate no separate integrity algorithm)",
+                )
         elif ttype == 4:  # DH group
             group = int(tid)
             if is_child:
                 # A DH group in a child SA proposal is exactly what PFS means.
                 state["pfs_enabled"] = True
+                _note(state, "pfs_enabled", OBSERVED, "the child SA proposal includes a DH group")
             if state["dh_group"] is None or is_child:
                 state["dh_group"] = group
+                _note(state, "dh_group", OBSERVED, "DH transform of the IKEv2 proposal")
         elif ttype == 5:  # Extended sequence numbers
             state["esn"] = int(tid) == 1
 
@@ -579,8 +665,15 @@ def _apply_ikev2_proposal(state, proposal, is_child):
     # SA's own integrity transform protects IKE messages, not the data plane.
     if child_integrity is not None:
         state["authentication"] = child_integrity
+        _note(state, "authentication", OBSERVED, "integrity transform of the child SA proposal")
     elif child_aead:
         state["authentication"] = AEAD_INTEGRITY
+        _note(
+            state,
+            "authentication",
+            OBSERVED,
+            "the child SA proposal uses an AEAD cipher, which carries its own integrity check",
+        )
 
 
 # --------------------------------------------------------------------------
@@ -686,6 +779,87 @@ def _ipsec_protocol(state):
     return UNKNOWN
 
 
+def _unknown_reason(field, session):
+    """Why `field` could not be determined, in terms a reader can act on."""
+    ikev2 = session.get("protocol") == "IKEv2"
+    reasons = {
+        "protocol": "no IKE messages for this peer pair in the capture",
+        "exchange_mode": "no IKE messages for this peer pair in the capture",
+        "ipsec_protocol": "no ESP or AH packets and no readable child SA proposal",
+        "ipsec_mode": "no encapsulation attribute, and too little ESP traffic to judge",
+        "encryption": "no readable IKE proposal",
+        "hash": "no readable IKE proposal",
+        "dh_group": "no readable IKE proposal or KE payload",
+        "authentication": "the child SA proposal was not visible (it is normally encrypted)",
+        "auth_method": (
+            "IKEv2 sends the authentication method encrypted in IKE_AUTH"
+            if ikev2
+            else "no readable authentication attribute"
+        ),
+        "lifetime_seconds": (
+            "IKEv2 does not negotiate lifetimes on the wire"
+            if ikev2
+            else "no life duration attribute was seen"
+        ),
+        "pfs_enabled": "the child SA negotiation was not visible (it is normally encrypted)",
+        "replay_protection": "fewer than two ESP/AH packets per SA, so sequence behaviour "
+        "cannot be judged",
+        "nat_traversal": "no IKE traffic to judge from",
+        "identity_exposed": "no ID payload was seen, and this exchange does not guarantee "
+        "encrypted identities",
+    }
+    return reasons.get(field, "not visible in the capture")
+
+
+def _field_provenance(session, state):
+    """{field: {"status", "basis"}} for every field in PROVENANCE_FIELDS.
+
+    A value with a recorded note uses it; any other known value was read directly
+    from an IKE header field; an Unknown/None value is reported with the reason.
+    """
+    notes = state["notes"]
+    provenance = {}
+    for field in PROVENANCE_FIELDS:
+        value = session.get(field)
+        if field == "traffic_features":
+            count = (value or {}).get("packet_count", 0)
+            provenance[field] = (
+                {
+                    "status": OBSERVED,
+                    "basis": "measured from %d ESP/AH packets (sizes and timing only)" % count,
+                }
+                if count
+                else {"status": NOT_DETERMINED, "basis": "no ESP or AH packets"}
+            )
+        elif value is None or value == UNKNOWN:
+            provenance[field] = {
+                "status": NOT_DETERMINED,
+                "basis": _unknown_reason(field, session),
+            }
+        elif field == "key_exchange":
+            provenance[field] = {
+                "status": provenance["dh_group"]["status"],
+                "basis": "derived from the DH group number",
+            }
+        elif field == "ipsec_protocol":
+            provenance[field] = {
+                "status": OBSERVED,
+                "basis": (
+                    "ESP/AH packets on the wire"
+                    if state["esp_records"] or state["ah_records"]
+                    else "protocol of the negotiated child SA proposal"
+                ),
+            }
+        elif field in notes:
+            provenance[field] = dict(notes[field])
+        else:
+            provenance[field] = {
+                "status": OBSERVED,
+                "basis": DEFAULT_OBSERVED_BASIS.get(field, "read directly from the capture"),
+            }
+    return provenance
+
+
 def _key_exchange(dh_group):
     """Name the key-exchange family for a DH group number."""
     if not isinstance(dh_group, int) or isinstance(dh_group, bool):
@@ -755,6 +929,7 @@ def _new_state():
         "seq_by_spi": {},
         "exchanges": set(),
         "negotiated_ipsec": set(),
+        "notes": {},
         "identity_values": set(),
         "parse_errors": 0,
         "saw_quick_mode": False,
@@ -889,6 +1064,7 @@ def _process_packet(pkt, counts, versions, states, order):
             state["parse_errors"] += 1
         if port == 500 and state["nat_traversal"] is None:
             state["nat_traversal"] = False
+            _note(state, "nat_traversal", INFERRED, "IKE was seen only on UDP/500 in this capture")
 
     elif kind in ("esp", "ah"):
         spi, seq = _esp_seq(pkt)
@@ -982,23 +1158,69 @@ def parse_pcap(path):
         mode, explicit = _infer_mode_from_esp(state["esp_records"], explicit_mode)
         if explicit_mode == UNKNOWN and mode != UNKNOWN:
             state["mode_guessed"] = True
+            _note(
+                state,
+                "ipsec_mode",
+                INFERRED,
+                "packet-size heuristic: the smallest ESP payload leaves room for an inner IP header",
+            )
         # RFC 7296: tunnel mode is the IKEv2 default unless USE_TRANSPORT_MODE is sent.
         if mode == UNKNOWN and state["protocol"] == "IKEv2" and state["ike_packets"]:
             mode = "Tunnel"
+            _note(
+                state,
+                "ipsec_mode",
+                INFERRED,
+                "IKEv2 default: no USE_TRANSPORT_MODE notify was seen, but real traffic "
+                "carries it encrypted in IKE_AUTH",
+            )
 
         # Protocols that always encrypt identity payloads: absent a plaintext ID
         # on the wire, identity is protected rather than merely undetermined.
         if state["identity_exposed"] is None and state["ike_packets"]:
             if state["protocol"] == "IKEv2":
                 state["identity_exposed"] = False  # RFC 7296: IDi/IDr ride inside SK
+                _note(
+                    state,
+                    "identity_exposed",
+                    INFERRED,
+                    "IKEv2 always encrypts identity payloads, and none was seen in the clear",
+                )
             elif state["protocol"] == "IKEv1" and state["exchange_mode"] == "Main":
                 state["identity_exposed"] = False  # main mode sends IDs in msgs 5/6
+                _note(
+                    state,
+                    "identity_exposed",
+                    INFERRED,
+                    "main mode sends identities encrypted, and none was seen in the clear",
+                )
 
         replay = _replay_status(state["seq_by_spi"])
+        if replay is not None:
+            counted = sum(len(seqs) for seqs in state["seq_by_spi"].values())
+            _note(
+                state,
+                "replay_protection",
+                INFERRED,
+                (
+                    "ESP sequence numbers increased monotonically across %d packets; the "
+                    "receiver's replay window itself is not visible on the wire"
+                    if replay
+                    else "ESP sequence numbers went backwards or repeated across %d packets, "
+                    "so the sender is not honouring anti-replay"
+                )
+                % counted,
+            )
         # Extended sequence numbers imply an anti-replay window is in use, but a
         # regression observed on the wire always wins.
         if replay is None and state["esn"] is True:
             replay = True
+            _note(
+                state,
+                "replay_protection",
+                INFERRED,
+                "extended sequence numbers were negotiated, which implies a replay window",
+            )
 
         src_ip, dst_ip = (
             (initiator, key[1] if key[0] == initiator else key[0])
@@ -1030,6 +1252,7 @@ def parse_pcap(path):
             "traffic_features": _traffic_features(flows, initiator),
         }
         session["confidence"] = _confidence(session, state)
+        session["field_provenance"] = _field_provenance(session, state)
         sessions.append(session)
 
     ike_errors = sum(state["parse_errors"] for state in states.values())

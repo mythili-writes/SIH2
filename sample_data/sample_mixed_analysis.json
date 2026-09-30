@@ -38,6 +38,72 @@
         "duration_seconds": 5.881814,
         "bytes_total": 23340,
         "upstream_ratio": 0.353
+      },
+      "field_provenance": {
+        "protocol": {
+          "status": "observed",
+          "basis": "version field of the IKE header"
+        },
+        "exchange_mode": {
+          "status": "observed",
+          "basis": "exchange type in the IKE header"
+        },
+        "ipsec_protocol": {
+          "status": "observed",
+          "basis": "ESP/AH packets on the wire"
+        },
+        "ipsec_mode": {
+          "status": "observed",
+          "basis": "encapsulation mode attribute of the quick mode proposal"
+        },
+        "encryption": {
+          "status": "observed",
+          "basis": "encryption attribute of the IKE proposal"
+        },
+        "authentication": {
+          "status": "observed",
+          "basis": "integrity attribute of the quick mode proposal"
+        },
+        "hash": {
+          "status": "observed",
+          "basis": "hash attribute of the IKE proposal"
+        },
+        "dh_group": {
+          "status": "observed",
+          "basis": "group attribute of the IKE proposal"
+        },
+        "key_exchange": {
+          "status": "observed",
+          "basis": "derived from the DH group number"
+        },
+        "auth_method": {
+          "status": "observed",
+          "basis": "authentication attribute of the IKE proposal"
+        },
+        "lifetime_seconds": {
+          "status": "observed",
+          "basis": "life duration attribute of the IKE proposal"
+        },
+        "pfs_enabled": {
+          "status": "observed",
+          "basis": "the quick mode proposal includes a DH group"
+        },
+        "replay_protection": {
+          "status": "inferred",
+          "basis": "ESP sequence numbers increased monotonically across 34 packets; the receiver's replay window itself is not visible on the wire"
+        },
+        "nat_traversal": {
+          "status": "inferred",
+          "basis": "IKE was seen only on UDP/500 in this capture"
+        },
+        "identity_exposed": {
+          "status": "inferred",
+          "basis": "main mode sends identities encrypted, and none was seen in the clear"
+        },
+        "traffic_features": {
+          "status": "observed",
+          "basis": "measured from 34 ESP/AH packets (sizes and timing only)"
+        }
       }
     }
   ],
@@ -49,7 +115,9 @@
       "category": "Encryption",
       "issue": "AES in CBC mode negotiated (AES-128-CBC): prefer an AEAD mode such as AES-GCM",
       "severity": "Low",
-      "evidence": "IKE transform payload advertised AES-128-CBC; CBC requires a separate integrity algorithm and is more error-prone than AES-GCM"
+      "evidence": "IKE transform payload advertised AES-128-CBC; CBC requires a separate integrity algorithm and is more error-prone than AES-GCM",
+      "evidence_status": "observed",
+      "evidence_basis": "encryption: encryption attribute of the IKE proposal"
     },
     {
       "finding_id": "F002",
@@ -57,7 +125,9 @@
       "category": "Hash",
       "issue": "Deprecated integrity/hash algorithm negotiated: SHA-1",
       "severity": "Medium",
-      "evidence": "IKE transform payload advertised SHA1 for session 2001:db8::1 -> 2001:db8:100::20"
+      "evidence": "IKE transform payload advertised SHA1 for session 2001:db8::1 -> 2001:db8:100::20",
+      "evidence_status": "observed",
+      "evidence_basis": "hash: hash attribute of the IKE proposal"
     },
     {
       "finding_id": "F003",
@@ -65,7 +135,9 @@
       "category": "KeyExchange",
       "issue": "Weak Diffie-Hellman group negotiated: group 5 (1536-bit MODP)",
       "severity": "Medium",
-      "evidence": "IKE key exchange payload indicated DH group 5 for session 2001:db8::1 -> 2001:db8:100::20"
+      "evidence": "IKE key exchange payload indicated DH group 5 for session 2001:db8::1 -> 2001:db8:100::20",
+      "evidence_status": "observed",
+      "evidence_basis": "dh_group: group attribute of the IKE proposal"
     },
     {
       "finding_id": "F004",
@@ -73,7 +145,9 @@
       "category": "Protocol",
       "issue": "Deprecated key exchange protocol in use: IKEv1",
       "severity": "Medium",
-      "evidence": "ISAKMP header reported version 1.0 for session 2001:db8::1 -> 2001:db8:100::20"
+      "evidence": "ISAKMP header reported version 1.0 for session 2001:db8::1 -> 2001:db8:100::20",
+      "evidence_status": "observed",
+      "evidence_basis": "protocol: version field of the IKE header"
     },
     {
       "finding_id": "F005",
@@ -81,7 +155,9 @@
       "category": "Lifetime",
       "issue": "SA lifetime below the recommended minimum: 120s (< 300s)",
       "severity": "Low",
-      "evidence": "IKE SA lifetime attribute decoded as 120 seconds for session 2001:db8::1 -> 2001:db8:100::20; excessive rekeying destabilises the tunnel"
+      "evidence": "IKE SA lifetime attribute decoded as 120 seconds for session 2001:db8::1 -> 2001:db8:100::20; excessive rekeying destabilises the tunnel",
+      "evidence_status": "observed",
+      "evidence_basis": "lifetime_seconds: life duration attribute of the IKE proposal"
     },
     {
       "finding_id": "F006",
@@ -89,7 +165,9 @@
       "category": "Mode",
       "issue": "Transport mode in use for what appears to be a site-to-site SA",
       "severity": "Low",
-      "evidence": "ESP payload structure for session 2001:db8::1 -> 2001:db8:100::20 is consistent with transport mode; the inner IP header is therefore not protected"
+      "evidence": "ESP payload structure for session 2001:db8::1 -> 2001:db8:100::20 is consistent with transport mode; the inner IP header is therefore not protected",
+      "evidence_status": "observed",
+      "evidence_basis": "ipsec_mode: encapsulation mode attribute of the quick mode proposal"
     },
     {
       "finding_id": "F007",
@@ -97,7 +175,9 @@
       "category": "Compliance",
       "issue": "Negotiated cipher suite is not compliant with the approved baseline",
       "severity": "Medium",
-      "evidence": "Suite AES-128-CBC/SHA1/DH5 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher AES-128-CBC does not meet the AES-256 minimum for non-AEAD modes"
+      "evidence": "Suite AES-128-CBC/SHA1/DH5 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher AES-128-CBC does not meet the AES-256 minimum for non-AEAD modes",
+      "evidence_status": "observed",
+      "evidence_basis": "encryption: encryption attribute of the IKE proposal"
     }
   ]
 }

@@ -67,6 +67,24 @@ Produced by `backend/main.py` (`backend.main.analyze()`).
 | `pfs_enabled`, `replay_protection`, `nat_traversal`, `identity_exposed` | bool or null | |
 | `confidence` | number 0-1 | Weighted share of key fields the parser determined |
 | `traffic_features` | object | `packet_count`, `avg_packet_size`, `min_packet_size`, `max_packet_size`, `avg_inter_arrival_ms`, `duration_seconds`, `bytes_total`, `upstream_ratio`; from ESP/AH sizes and timing only |
+| `field_provenance` | object | *Optional, additive.* How each value was obtained; see below |
+
+### Field provenance
+
+`field_provenance` maps each of `protocol`, `exchange_mode`, `ipsec_protocol`,
+`ipsec_mode`, `encryption`, `authentication`, `hash`, `dh_group`,
+`key_exchange`, `auth_method`, `lifetime_seconds`, `pfs_enabled`,
+`replay_protection`, `nat_traversal`, `identity_exposed` and
+`traffic_features` to `{status, basis}`:
+
+| `status` | Meaning |
+|---|---|
+| `observed` | Read from a plaintext protocol field, or from the absence of a payload in a message that was fully readable |
+| `inferred` | Deduced: a heuristic (ESP size), a protocol default (IKEv2 tunnel mode), or packet behaviour (sequence numbers) |
+| `unknown` | Not determinable; the value is `"Unknown"` or `null` |
+
+`basis` is one human-readable sentence, e.g. `"packet-size heuristic: the
+smallest ESP payload leaves room for an inner IP header"`.
 
 ### Finding
 
@@ -78,6 +96,8 @@ Produced by `backend/main.py` (`backend.main.analyze()`).
 | `issue` | string | One line |
 | `severity` | `"Critical"` `"High"` `"Medium"` `"Low"` | |
 | `evidence` | string | What in the capture triggered the rule |
+| `evidence_status` | `"observed"` `"inferred"` | *Optional, additive.* The weakest status among the session fields this rule reads (ignoring undetermined ones). Absent when the session has no `field_provenance` |
+| `evidence_basis` | string | *Optional, additive.* `"<field>: <basis>"` for that weakest field |
 
 ## Contract B: report
 
@@ -95,7 +115,7 @@ step.
 | `ai_confidence_score` | number 0-1 | Mean parser confidence blended 50/50 with mean traffic-model confidence |
 | `summary` | string | One sentence |
 | `executive_report` | object | `headline`, `key_points` (list), `business_impact`, `top_actions` (list) |
-| `technical_report` | object | Five strings, one `Session N: ...` part per session joined with ` \| `: `protocol_identification`, `cipher_suite_analysis`, `sa_analysis`, `metadata_exposure`, `compliance_notes` |
+| `technical_report` | object | Five strings, one `Session N: ...` part per session joined with ` \| `: `protocol_identification`, `cipher_suite_analysis`, `sa_analysis`, `metadata_exposure`, `compliance_notes`; plus, *optional and additive*, `uncertainty_notes`: per session, how many values were observed directly, which were inferred and why, and which were not determined |
 | `traffic_analysis` | list | See below |
 | `threat_matrix` | list | See below |
 | `findings` | list | Contract A findings without `evidence`, plus the fields below |
@@ -108,6 +128,7 @@ step.
 |---|---|---|
 | `risk_score` | int | Critical 95, High 75, Medium 50, Low 25 |
 | `explanation`, `recommendation`, `reference` | string | Rule-based offline; from Claude when a key is set and the call succeeds |
+| `evidence_status`, `evidence_basis` | string | *Optional, additive.* Passed through from Contract A; `"unknown"` and `""` when the input carried no provenance |
 | `remediation_snippet` | string | *Optional, additive.* strongSwan `ipsec.conf` lines that fix this finding, with `# was` comments recording the observed values; `""` when no setting applies. Always rule-generated, never from the LLM |
 
 ### Traffic analysis entry

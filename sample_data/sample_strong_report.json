@@ -19,7 +19,8 @@
     "cipher_suite_analysis": "Session S1: AES-256-GCM + AEAD, hash SHA256, DH group 14",
     "sa_analysis": "Session S1: lifetime unknown, replay protection on, PFS on, NAT-T off",
     "metadata_exposure": "No session sends its peer identity in clear | Traffic type can still be inferred from packet sizes and timing even though ESP is encrypted",
-    "compliance_notes": "Session S1: meets the checked NIST guidance"
+    "compliance_notes": "Session S1: meets the checked NIST guidance",
+    "uncertainty_notes": "Session S1: 11 of 16 values observed directly; inferred, not observed: ipsec_mode (packet-size heuristic: the smallest ESP payload leaves room for an inner IP header); replay_protection (ESP sequence numbers increased monotonically across 60 packets; the receiver's replay window itself is not visible on the wire); nat_traversal (IKE was seen only on UDP/500 in this capture); identity_exposed (IKEv2 always encrypts identity payloads, and none was seen in the clear); not determined: lifetime_seconds"
   },
   "traffic_analysis": [
     {
@@ -75,6 +76,72 @@
         "duration_seconds": 0.177001,
         "bytes_total": 73410,
         "upstream_ratio": 0.9865
+      },
+      "field_provenance": {
+        "protocol": {
+          "status": "observed",
+          "basis": "version field of the IKE header"
+        },
+        "exchange_mode": {
+          "status": "observed",
+          "basis": "exchange type in the IKE header"
+        },
+        "ipsec_protocol": {
+          "status": "observed",
+          "basis": "ESP/AH packets on the wire"
+        },
+        "ipsec_mode": {
+          "status": "inferred",
+          "basis": "packet-size heuristic: the smallest ESP payload leaves room for an inner IP header"
+        },
+        "encryption": {
+          "status": "observed",
+          "basis": "encryption transform of the IKEv2 proposal"
+        },
+        "authentication": {
+          "status": "observed",
+          "basis": "the child SA proposal uses an AEAD cipher, which carries its own integrity check"
+        },
+        "hash": {
+          "status": "observed",
+          "basis": "PRF transform (AEAD suites negotiate no separate integrity algorithm)"
+        },
+        "dh_group": {
+          "status": "observed",
+          "basis": "DH transform of the IKEv2 proposal"
+        },
+        "key_exchange": {
+          "status": "observed",
+          "basis": "derived from the DH group number"
+        },
+        "auth_method": {
+          "status": "observed",
+          "basis": "method field of an AUTH payload seen in the clear (real IKEv2 encrypts it)"
+        },
+        "lifetime_seconds": {
+          "status": "unknown",
+          "basis": "IKEv2 does not negotiate lifetimes on the wire"
+        },
+        "pfs_enabled": {
+          "status": "observed",
+          "basis": "CREATE_CHILD_SA carried a KE payload"
+        },
+        "replay_protection": {
+          "status": "inferred",
+          "basis": "ESP sequence numbers increased monotonically across 60 packets; the receiver's replay window itself is not visible on the wire"
+        },
+        "nat_traversal": {
+          "status": "inferred",
+          "basis": "IKE was seen only on UDP/500 in this capture"
+        },
+        "identity_exposed": {
+          "status": "inferred",
+          "basis": "IKEv2 always encrypts identity payloads, and none was seen in the clear"
+        },
+        "traffic_features": {
+          "status": "observed",
+          "basis": "measured from 60 ESP/AH packets (sizes and timing only)"
+        }
       }
     }
   ],

@@ -38,6 +38,72 @@
         "duration_seconds": 0.779999,
         "bytes_total": 6000,
         "upstream_ratio": 0.5
+      },
+      "field_provenance": {
+        "protocol": {
+          "status": "observed",
+          "basis": "version field of the IKE header"
+        },
+        "exchange_mode": {
+          "status": "observed",
+          "basis": "exchange type in the IKE header"
+        },
+        "ipsec_protocol": {
+          "status": "observed",
+          "basis": "ESP/AH packets on the wire"
+        },
+        "ipsec_mode": {
+          "status": "observed",
+          "basis": "encapsulation mode attribute of the quick mode proposal"
+        },
+        "encryption": {
+          "status": "observed",
+          "basis": "encryption attribute of the IKE proposal"
+        },
+        "authentication": {
+          "status": "observed",
+          "basis": "integrity attribute of the quick mode proposal"
+        },
+        "hash": {
+          "status": "observed",
+          "basis": "hash attribute of the IKE proposal"
+        },
+        "dh_group": {
+          "status": "observed",
+          "basis": "group attribute of the IKE proposal"
+        },
+        "key_exchange": {
+          "status": "observed",
+          "basis": "derived from the DH group number"
+        },
+        "auth_method": {
+          "status": "observed",
+          "basis": "authentication attribute of the IKE proposal"
+        },
+        "lifetime_seconds": {
+          "status": "observed",
+          "basis": "life duration attribute of the IKE proposal"
+        },
+        "pfs_enabled": {
+          "status": "observed",
+          "basis": "quick mode was readable and carried no KE payload"
+        },
+        "replay_protection": {
+          "status": "inferred",
+          "basis": "ESP sequence numbers went backwards or repeated across 40 packets, so the sender is not honouring anti-replay"
+        },
+        "nat_traversal": {
+          "status": "inferred",
+          "basis": "IKE was seen only on UDP/500 in this capture"
+        },
+        "identity_exposed": {
+          "status": "observed",
+          "basis": "an ID payload was sent in cleartext"
+        },
+        "traffic_features": {
+          "status": "observed",
+          "basis": "measured from 40 ESP/AH packets (sizes and timing only)"
+        }
       }
     }
   ],
@@ -49,7 +115,9 @@
       "category": "Encryption",
       "issue": "Weak encryption algorithm negotiated: 3DES (deprecated, 112-bit effective)",
       "severity": "High",
-      "evidence": "IKE transform payload advertised 3DES-CBC for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "IKE transform payload advertised 3DES-CBC for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "encryption: encryption attribute of the IKE proposal"
     },
     {
       "finding_id": "F002",
@@ -57,7 +125,9 @@
       "category": "Hash",
       "issue": "Weak integrity/hash algorithm negotiated: MD5",
       "severity": "High",
-      "evidence": "IKE transform payload advertised MD5 for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "IKE transform payload advertised MD5 for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "hash: hash attribute of the IKE proposal"
     },
     {
       "finding_id": "F003",
@@ -65,7 +135,9 @@
       "category": "KeyExchange",
       "issue": "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)",
       "severity": "High",
-      "evidence": "IKE key exchange payload indicated DH group 2 for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "IKE key exchange payload indicated DH group 2 for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "dh_group: group attribute of the IKE proposal"
     },
     {
       "finding_id": "F004",
@@ -73,7 +145,9 @@
       "category": "Protocol",
       "issue": "IKEv1 Aggressive Mode in use",
       "severity": "High",
-      "evidence": "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500 for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500 for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "protocol: version field of the IKE header"
     },
     {
       "finding_id": "F005",
@@ -81,7 +155,9 @@
       "category": "Authentication",
       "issue": "Pre-Shared Key authentication in use",
       "severity": "Medium",
-      "evidence": "IKE transform payload advertised auth method 'Pre-Shared Key' for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "IKE transform payload advertised auth method 'Pre-Shared Key' for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "auth_method: authentication attribute of the IKE proposal"
     },
     {
       "finding_id": "F006",
@@ -89,7 +165,9 @@
       "category": "PFS",
       "issue": "Perfect Forward Secrecy is disabled",
       "severity": "Medium",
-      "evidence": "No Diffie-Hellman key exchange payload observed during child SA negotiation for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "No Diffie-Hellman key exchange payload observed during child SA negotiation for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "pfs_enabled: quick mode was readable and carried no KE payload"
     },
     {
       "finding_id": "F007",
@@ -97,7 +175,9 @@
       "category": "Lifetime",
       "issue": "SA lifetime exceeds the recommended maximum: 172800s (> 86400s)",
       "severity": "Low",
-      "evidence": "IKE SA lifetime attribute decoded as 172800 seconds for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "IKE SA lifetime attribute decoded as 172800 seconds for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "lifetime_seconds: life duration attribute of the IKE proposal"
     },
     {
       "finding_id": "F008",
@@ -105,7 +185,9 @@
       "category": "ReplayProtection",
       "issue": "Anti-replay protection appears disabled",
       "severity": "Medium",
-      "evidence": "ESP sequence numbers for session 10.0.0.1 -> 203.0.113.9 did not increase monotonically across the capture"
+      "evidence": "ESP sequence numbers for session 10.0.0.1 -> 203.0.113.9 did not increase monotonically across the capture",
+      "evidence_status": "inferred",
+      "evidence_basis": "replay_protection: ESP sequence numbers went backwards or repeated across 40 packets, so the sender is not honouring anti-replay"
     },
     {
       "finding_id": "F009",
@@ -113,7 +195,9 @@
       "category": "MetadataExposure",
       "issue": "Peer identity transmitted without encryption",
       "severity": "Medium",
-      "evidence": "An IKE ID payload was observed in an unencrypted message for session 10.0.0.1 -> 203.0.113.9"
+      "evidence": "An IKE ID payload was observed in an unencrypted message for session 10.0.0.1 -> 203.0.113.9",
+      "evidence_status": "observed",
+      "evidence_basis": "identity_exposed: an ID payload was sent in cleartext"
     },
     {
       "finding_id": "F010",
@@ -121,7 +205,9 @@
       "category": "Compliance",
       "issue": "Negotiated cipher suite is not compliant with the approved baseline",
       "severity": "Medium",
-      "evidence": "Suite 3DES-CBC/MD5/DH2 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher 3DES-CBC is outside the approved AES family"
+      "evidence": "Suite 3DES-CBC/MD5/DH2 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher 3DES-CBC is outside the approved AES family",
+      "evidence_status": "observed",
+      "evidence_basis": "encryption: encryption attribute of the IKE proposal"
     }
   ]
 }
