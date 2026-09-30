@@ -320,7 +320,7 @@ def evaluate_session(session, builder):
         builder.add(
             sid,
             "Compliance",
-            "Negotiated cipher suite is not in the approved list",
+            "Negotiated cipher suite is not compliant with the approved baseline",
             "Medium",
             "Suite %s/%s/DH%s fails the AES-GCM or AES-256 + SHA-256 baseline: %s"
             % (

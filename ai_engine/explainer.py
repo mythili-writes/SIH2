@@ -158,11 +158,18 @@ _RULE_PATTERNS = [(_keyword_pattern(rule["keywords"]), rule) for rule in RULES]
 
 
 def _match_rule(finding):
-    """Return the first rule whose keywords appear in the finding's issue or evidence, or None."""
-    text = f"{finding.get('issue') or ''} {finding.get('evidence') or ''}".lower()
-    for pattern, rule in _RULE_PATTERNS:
-        if pattern.search(text):
-            return rule
+    """Return the first rule matching the finding's issue, else its issue plus evidence, or None.
+
+    The issue is tried on its own first because evidence often quotes other algorithms:
+    a Compliance finding's evidence names the weak cipher, and matching on the combined
+    text would pick that cipher's rule instead of the finding's own.
+    """
+    issue = str(finding.get("issue") or "").lower()
+    evidence = str(finding.get("evidence") or "").lower()
+    for text in (issue, f"{issue} {evidence}"):
+        for pattern, rule in _RULE_PATTERNS:
+            if pattern.search(text):
+                return rule
     return None
 
 
