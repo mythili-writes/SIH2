@@ -22,6 +22,7 @@ import config  # noqa: E402
 from ai_engine import scorer  # noqa: E402
 from ai_engine.main import run as run_ai_engine  # noqa: E402
 from backend.main import analyze as run_backend  # noqa: E402
+from backend.parser import CaptureError  # noqa: E402,F401  (re-exported for the UI)
 
 log = logging.getLogger("frontend.pipeline")
 
@@ -51,6 +52,13 @@ def run_pipeline_on_bytes(data, file_name="upload.pcap", offline=True):
     before returning. `file_name` replaces the temp name in both contracts so
     the UI shows the name the user uploaded.
     """
+    log.info("upload received file=%s bytes=%d", os.path.basename(file_name), len(data))
+    if len(data) > config.MAX_CAPTURE_BYTES:
+        # Refuse before anything touches the disk.
+        raise CaptureError(
+            "the file is %.1f MB; the limit is %.1f MB"
+            % (len(data) / 1048576, config.MAX_CAPTURE_BYTES / 1048576)
+        )
     suffix = ".pcapng" if file_name.lower().endswith(".pcapng") else ".pcap"
     handle, temp_path = tempfile.mkstemp(suffix=suffix, prefix="ipsec_upload_")
     try:

@@ -13,10 +13,10 @@ import sys
 if __package__ in (None, ""):  # allow `python backend/main.py`
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from backend import rules
-    from backend.parser import parse_pcap
+    from backend.parser import CaptureError, parse_pcap
 else:
     from . import rules
-    from .parser import parse_pcap
+    from .parser import CaptureError, parse_pcap
 
 log = logging.getLogger("backend.main")
 
@@ -50,20 +50,27 @@ def main(argv=None):
     parser.add_argument("output", help="path to write the Contract A JSON")
     args = parser.parse_args(argv)
 
-    if not os.path.isfile(args.pcap):
-        print("error: no such file: %s" % args.pcap, file=sys.stderr)
-        return 2
-
     try:
         analysis = analyze(args.pcap)
+    except CaptureError as exc:
+        # Bad input, not a bug: a clear message and exit code 2, no traceback.
+        log.warning("capture rejected file=%s reason=%s", os.path.basename(args.pcap), exc)
+        print("error: could not parse %s: %s" % (args.pcap, exc), file=sys.stderr)
+        return 2
     except Exception as exc:
         log.error("capture parse failed file=%s", os.path.basename(args.pcap), exc_info=True)
         print("error: failed to parse %s: %s: %s" % (args.pcap, type(exc).__name__, exc),
               file=sys.stderr)
         return 1
 
-    with open(args.output, "w", encoding="utf-8") as fh:
-        json.dump(analysis, fh, indent=2)
+    try:
+        with open(args.output, "w", encoding="utf-8") as fh:
+            json.dump(analysis, fh, indent=2)
+    except OSError as exc:
+        print("error: cannot write %s (%s)" % (args.output, exc.strerror), file=sys.stderr)
+        return 1
+    for warning in analysis.get("parse_warnings") or []:
+        print("warning: %s" % warning, file=sys.stderr)
 
     summary = analysis["packet_summary"]
     print(

@@ -332,7 +332,8 @@ def _result(session_id, traffic_type, confidence, top_predictions, metadata_infe
 def predict_sessions(sessions):
     """Return one dict per session with session_id, predicted_traffic_type, traffic_confidence,
     top_predictions and metadata_inference. Falls back to simple rules if the model fails. Never raises
-    for model problems."""
+    for model problems. Entries that are not dicts are skipped."""
+    sessions = [s for s in sessions or [] if isinstance(s, dict)]
     rows = {}
     for index, session in enumerate(sessions):
         features = session.get("traffic_features")

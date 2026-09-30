@@ -17,7 +17,7 @@ import os
 import struct
 import time
 
-from scapy.all import rdpcap
+from scapy.utils import PcapReader
 from scapy.layers.inet import IP, UDP
 from scapy.layers.inet6 import IPv6
 from scapy.layers.ipsec import AH, ESP
@@ -37,9 +37,30 @@ except Exception:  # pragma: no cover - contrib module should always be present
     ikev2 = None
     HAVE_IKEV2 = False
 
+import config
+
 log = logging.getLogger("backend.parser")
 
 UNKNOWN = "Unknown"
+
+
+class CaptureError(ValueError):
+    """A capture that cannot be analysed. str(exc) is a reason fit to show a user."""
+
+
+# First four bytes of a classic pcap, mapped to the struct byte order of its
+# headers (microsecond and nanosecond variants, both endiannesses).
+PCAP_MAGIC = {
+    b"\xa1\xb2\xc3\xd4": ">",
+    b"\xd4\xc3\xb2\xa1": "<",
+    b"\xa1\xb2\x3c\x4d": ">",
+    b"\x4d\x3c\xb2\xa1": "<",
+}
+PCAPNG_MAGIC = b"\x0a\x0d\x0d\x0a"  # Section Header Block type
+PCAPNG_BYTE_ORDER = (b"\x1a\x2b\x3c\x4d", b"\x4d\x3c\x2b\x1a")
+
+# A record longer than this (or than the file's snap length, if larger) is corrupt.
+MAX_RECORD_BYTES = 262144
 
 IKE_PORTS = (500, 4500)
 
@@ -737,75 +758,209 @@ def _new_state():
     }
 
 
+def validate_capture(path):
+    """Check that `path` is a pcap or pcapng file within the size limit.
+
+    Only the file header is read. Returns "pcap" or "pcapng"; raises
+    CaptureError with a user-facing reason for anything else.
+    """
+    if not os.path.isfile(path):
+        raise CaptureError("file not found")
+    size = os.path.getsize(path)
+    if size == 0:
+        raise CaptureError("the file is empty")
+    limit = config.MAX_CAPTURE_BYTES
+    if size > limit:
+        raise CaptureError(
+            "the file is %.1f MB; the limit is %.1f MB (set IPSEC_MAX_CAPTURE_MB to change it)"
+            % (size / 1048576, limit / 1048576)
+        )
+
+    with open(path, "rb") as fh:
+        head = fh.read(24)
+    if head[:4] in PCAP_MAGIC:
+        if len(head) < 24:
+            raise CaptureError("the pcap file header is truncated")
+        return "pcap"
+    if head[:4] == PCAPNG_MAGIC:
+        if len(head) < 12 or head[8:12] not in PCAPNG_BYTE_ORDER:
+            raise CaptureError("the pcapng section header is malformed")
+        return "pcapng"
+    if head[:2] == b"\x1f\x8b":
+        raise CaptureError("the file is gzip-compressed; decompress it and use the capture inside")
+    if head[:4] == b"PK\x03\x04":
+        raise CaptureError("the file is a zip archive; extract it and use the capture inside")
+    raise CaptureError(
+        "not a pcap or pcapng file (unrecognised header 0x%s)" % (head[:4].hex() or "empty")
+    )
+
+
+def _scan_pcap_records(path, limit):
+    """Count the intact records of a classic pcap, stopping at `limit`.
+
+    Scapy silently returns a partial packet when a record is cut short, and a
+    record declaring an absurd length swallows the rest of the file, so the
+    16-byte record headers are checked first. Returns (usable_records, warning),
+    where warning is None when the whole file is usable.
+    """
+    with open(path, "rb") as fh:
+        header = fh.read(24)
+        endian = PCAP_MAGIC[header[:4]]
+        snaplen = struct.unpack(endian + "I", header[16:20])[0]
+        max_len = max(snaplen, MAX_RECORD_BYTES)
+        size = os.fstat(fh.fileno()).st_size
+
+        position, count = 24, 0
+        while position < size:
+            if count >= limit:
+                return count, (
+                    "Stopped after %d packets (the IPSEC_MAX_PACKETS limit); "
+                    "later packets were not analysed." % count
+                )
+            fh.seek(position)
+            record = fh.read(16)
+            if len(record) < 16:
+                return count, (
+                    "The capture ends partway through a packet header; "
+                    "the first %d packets were analysed." % count
+                )
+            incl_len = struct.unpack(endian + "I", record[8:12])[0]
+            if incl_len > max_len:
+                return count, (
+                    "Packet %d declares an impossible length (%d bytes), so the capture is "
+                    "corrupt from there; the first %d packets were analysed."
+                    % (count + 1, incl_len, count)
+                )
+            if position + 16 + incl_len > size:
+                return count, (
+                    "The capture is truncated partway through packet %d; "
+                    "the first %d packets were analysed." % (count + 1, count)
+                )
+            position += 16 + incl_len
+            count += 1
+    return count, None
+
+
+def _process_packet(pkt, counts, versions, states, order):
+    """Classify one packet and fold it into the per-peer-pair session state."""
+    info = _ip_layer(pkt)
+    kind = classify_packet(pkt)
+    counts[kind + "_packets"] += 1
+
+    if info is None:
+        return
+    src, dst, _, version = info
+    versions.add(version)
+
+    if kind == "other":
+        return
+
+    key = _pair_key(src, dst)
+    if key not in states:
+        states[key] = _new_state()
+        order.append(key)
+    state = states[key]
+
+    timestamp = float(pkt.time)
+    if state["first_src"] is None:
+        state["first_src"] = src
+        state["first_time"] = timestamp
+
+    if kind == "ike":
+        raw = _ike_bytes(pkt)
+        if not raw:
+            return
+        port = 4500 if (pkt[UDP].sport == 4500 or pkt[UDP].dport == 4500) else 500
+        meta = {"port": port, "time": timestamp}
+        major = _ike_version(raw)
+        if major == 2:
+            _parse_ikev2(raw, state, meta)
+        elif major == 1:
+            _parse_ikev1(raw, state, meta)
+        else:
+            state["parse_errors"] += 1
+        if port == 500 and state["nat_traversal"] is None:
+            state["nat_traversal"] = False
+
+    elif kind in ("esp", "ah"):
+        spi, seq = _esp_seq(pkt)
+        esp_payload = None
+        if ESP in pkt:
+            esp_payload = len(bytes(pkt[ESP].data)) if pkt[ESP].data else 0
+        elif AH in pkt:
+            esp_payload = len(bytes(pkt[AH].payload))
+        record = {
+            "time": timestamp,
+            "size": len(pkt),
+            "src": src,
+            "esp_payload": esp_payload,
+        }
+        state["esp_records" if kind == "esp" else "ah_records"].append(record)
+        if spi is not None and seq is not None:
+            state["seq_by_spi"].setdefault(spi, []).append(seq)
+
+
 def parse_pcap(path):
     """Parse a capture and return a Contract A dict without the `findings` key.
 
+    The file is validated first (CaptureError on anything unreadable), then
+    streamed packet by packet so memory stays bounded, stopping at
+    config.MAX_PACKETS. A packet that fails to dissect is skipped rather than
+    aborting the run. Anything the analysis should caveat (truncation, skipped
+    packets, no IPsec traffic) is listed in "parse_warnings".
     `backend.main` adds findings by running the rule engine over `sessions`.
     """
     started = time.perf_counter()
-    packets = rdpcap(path)
+    capture_format = validate_capture(path)
+    warnings = []
+
+    limit = config.MAX_PACKETS
+    if capture_format == "pcap":
+        limit, scan_warning = _scan_pcap_records(path, config.MAX_PACKETS)
+        if scan_warning:
+            warnings.append(scan_warning)
 
     counts = {"ike_packets": 0, "esp_packets": 0, "ah_packets": 0, "other_packets": 0}
     versions = set()
     states = {}
     order = []
+    total = failed = 0
 
-    for pkt in packets:
-        info = _ip_layer(pkt)
-        kind = classify_packet(pkt)
-        counts[kind + "_packets"] += 1
+    try:
+        reader = PcapReader(path)
+    except Exception as exc:
+        raise CaptureError("the capture could not be opened (%s)" % type(exc).__name__) from exc
+    try:
+        for pkt in reader:
+            if total >= limit:
+                if capture_format == "pcapng":
+                    warnings.append(
+                        "Stopped after %d packets (the IPSEC_MAX_PACKETS limit); "
+                        "later packets were not analysed." % total
+                    )
+                break
+            total += 1
+            try:
+                _process_packet(pkt, counts, versions, states, order)
+            except Exception:
+                failed += 1
+                log.debug("packet dissection failed index=%d", total, exc_info=True)
+    except Exception as exc:
+        warnings.append(
+            "The capture could not be read past packet %d (%s); the packets before it "
+            "were analysed." % (total, type(exc).__name__)
+        )
+        log.warning("capture read stopped early packets=%d reason=%s", total, type(exc).__name__)
+    finally:
+        reader.close()
 
-        if info is None:
-            continue
-        src, dst, _, version = info
-        versions.add(version)
-
-        if kind == "other":
-            continue
-
-        key = _pair_key(src, dst)
-        if key not in states:
-            states[key] = _new_state()
-            order.append(key)
-        state = states[key]
-
-        timestamp = float(pkt.time)
-        if state["first_src"] is None:
-            state["first_src"] = src
-            state["first_time"] = timestamp
-
-        if kind == "ike":
-            raw = _ike_bytes(pkt)
-            if not raw:
-                continue
-            port = 4500 if (pkt[UDP].sport == 4500 or pkt[UDP].dport == 4500) else 500
-            meta = {"port": port, "time": timestamp}
-            major = _ike_version(raw)
-            if major == 2:
-                _parse_ikev2(raw, state, meta)
-            elif major == 1:
-                _parse_ikev1(raw, state, meta)
-            else:
-                state["parse_errors"] += 1
-            if port == 500 and state["nat_traversal"] is None:
-                state["nat_traversal"] = False
-
-        elif kind in ("esp", "ah"):
-            spi, seq = _esp_seq(pkt)
-            esp_payload = None
-            if ESP in pkt:
-                esp_payload = len(bytes(pkt[ESP].data)) if pkt[ESP].data else 0
-            elif AH in pkt:
-                esp_payload = len(bytes(pkt[AH].payload))
-            record = {
-                "time": timestamp,
-                "size": len(pkt),
-                "src": src,
-                "esp_payload": esp_payload,
-            }
-            state["esp_records" if kind == "esp" else "ah_records"].append(record)
-            if spi is not None and seq is not None:
-                state["seq_by_spi"].setdefault(spi, []).append(seq)
+    if failed:
+        warnings.append("%d packet(s) could not be dissected and were skipped." % failed)
+        log.warning("packets skipped count=%d reason=dissection failed", failed)
+    if total == 0:
+        warnings.append("The capture contains no packets.")
+    elif not order:
+        warnings.append("No IKE, ESP or AH traffic was found, so there is no IPsec session to assess.")
 
     sessions = []
     for index, key in enumerate(order):
@@ -881,7 +1036,7 @@ def parse_pcap(path):
         "capture parsed file=%s packets=%d ike=%d esp=%d ah=%d other=%d sessions=%d "
         "ip_version=%s seconds=%.2f",
         os.path.basename(path),
-        len(packets),
+        total,
         counts["ike_packets"],
         counts["esp_packets"],
         counts["ah_packets"],
@@ -892,8 +1047,9 @@ def parse_pcap(path):
     )
     return {
         "file_name": os.path.basename(path),
-        "total_packets": len(packets),
+        "total_packets": total,
         "ip_version": ip_version,
         "packet_summary": counts,
         "sessions": sessions,
+        "parse_warnings": warnings,
     }

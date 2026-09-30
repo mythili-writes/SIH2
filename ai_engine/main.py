@@ -47,7 +47,43 @@ def _safe(part, func, default):
 
 
 def _as_list(value):
+    """Return value if it is a list, else an empty list."""
     return value if isinstance(value, list) else []
+
+
+def _clean_sessions(raw):
+    """Keep only dict sessions, so one malformed entry cannot break every session's analysis."""
+    sessions = [copy.deepcopy(s) for s in _as_list(raw) if isinstance(s, dict)]
+    dropped = len(_as_list(raw)) - len(sessions)
+    if dropped:
+        log.warning("malformed sessions ignored count=%d reason=not an object", dropped)
+    return sessions
+
+
+def _clean_findings(raw):
+    """Keep dict findings and give each the string fields Contract B requires.
+
+    A missing or non-string finding_id gets a generated one; a missing category
+    becomes "Unknown" and a missing issue a generic description. The input list
+    and its dicts are not modified.
+    """
+    findings = []
+    for index, finding in enumerate(f for f in _as_list(raw) if isinstance(f, dict)):
+        clean = dict(finding)
+        finding_id = clean.get("finding_id")
+        if finding_id is None or isinstance(finding_id, bool) or str(finding_id).strip() == "":
+            clean["finding_id"] = "F%03d-generated" % (index + 1)
+        elif not isinstance(finding_id, str):
+            clean["finding_id"] = str(finding_id)
+        if not isinstance(clean.get("category"), str) or not clean["category"].strip():
+            clean["category"] = "Unknown"
+        if not isinstance(clean.get("issue"), str) or not clean["issue"].strip():
+            clean["issue"] = "Unspecified IPsec configuration weakness"
+        findings.append(clean)
+    dropped = len(_as_list(raw)) - len(findings)
+    if dropped:
+        log.warning("malformed findings ignored count=%d reason=not an object", dropped)
+    return findings
 
 
 def _contract_finding(finding):
@@ -60,8 +96,8 @@ def _contract_finding(finding):
 
 def _build(analysis):
     started = time.perf_counter()
-    sessions = copy.deepcopy(_as_list(analysis.get("sessions")))
-    raw_findings = [f for f in _as_list(analysis.get("findings")) if isinstance(f, dict)]
+    sessions = _clean_sessions(analysis.get("sessions"))
+    raw_findings = _clean_findings(analysis.get("findings"))
 
     findings, explain_mode = _safe(
         "explainer", lambda: explainer.explain_findings(raw_findings),

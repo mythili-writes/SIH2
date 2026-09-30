@@ -4,6 +4,7 @@ Usage: python ai_engine/scorer.py <analysis.json>
 """
 
 import json
+import math
 import os
 import sys
 from statistics import mean
@@ -76,15 +77,31 @@ def risk_level(score):
 
 
 def ai_confidence(sessions, traffic_confidences=None):
-    """Blend parser confidence with traffic-model confidence. Returns a float from 0 to 1, 2 decimals."""
-    parser_values = [s["confidence"] for s in sessions if s.get("confidence") is not None]
+    """Blend parser confidence with traffic-model confidence. Returns a float from 0 to 1, 2 decimals.
+
+    Values that are not finite numbers are ignored rather than trusted: a NaN would
+    otherwise survive the final clamp as 1.0, because min(1.0, nan) is 1.0.
+    """
+    parser_values = [
+        s.get("confidence")
+        for s in sessions or []
+        if isinstance(s, dict) and _finite_number(s.get("confidence"))
+    ]
     parser_conf = mean(parser_values) if parser_values else 0.5
 
-    if traffic_confidences:
-        result = 0.5 * parser_conf + 0.5 * mean(traffic_confidences)
+    traffic_values = [c for c in traffic_confidences or [] if _finite_number(c)]
+    if traffic_values:
+        result = 0.5 * parser_conf + 0.5 * mean(traffic_values)
     else:
         result = parser_conf
     return round(max(0.0, min(1.0, result)), 2)
+
+
+def _finite_number(value):
+    """True for an int or float that is finite; False for bools, strings, None, NaN, inf."""
+    return (
+        isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    )
 
 
 def build_threat_matrix(findings):

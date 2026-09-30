@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 TOP_LEVEL_KEYS = {"file_name", "total_packets", "ip_version", "packet_summary", "sessions", "findings"}
+# Additive keys: allowed but not required, so older files without them still pass.
+OPTIONAL_TOP_LEVEL_KEYS = {"parse_warnings"}
 PACKET_SUMMARY_KEYS = {"ike_packets", "esp_packets", "ah_packets", "other_packets"}
 SESSION_KEYS = {
     "session_id", "src_ip", "dst_ip", "ipsec_protocol", "protocol", "exchange_mode", "ipsec_mode",
@@ -34,14 +36,18 @@ IPSEC_PROTOCOLS = {"ESP", "AH", "ESP+AH", "Unknown"}
 IP_VERSIONS = {"IPv4", "IPv6", "Mixed", "Unknown"}
 
 
-def check_keys(obj, expected, where, errors):
-    """Record missing and unexpected keys. Returns False if obj is not a dict."""
+def check_keys(obj, expected, where, errors, optional=frozenset()):
+    """Record missing and unexpected keys. Returns False if obj is not a dict.
+
+    Keys in `optional` may be present or absent; any other key outside
+    `expected` is reported as unexpected.
+    """
     if not isinstance(obj, dict):
         errors.append(f"{where}: expected an object, got {type(obj).__name__}")
         return False
     for key in sorted(expected - obj.keys()):
         errors.append(f"{where}: missing key '{key}'")
-    for key in sorted(obj.keys() - expected):
+    for key in sorted(obj.keys() - expected - optional):
         errors.append(f"{where}: unexpected key '{key}'")
     return True
 
@@ -53,9 +59,12 @@ def check_enum(obj, key, allowed, where, errors):
 
 def check_contract_a(data):
     errors = []
-    if not check_keys(data, TOP_LEVEL_KEYS, "top level", errors):
+    if not check_keys(data, TOP_LEVEL_KEYS, "top level", errors, OPTIONAL_TOP_LEVEL_KEYS):
         return errors
     check_enum(data, "ip_version", IP_VERSIONS, "top level", errors)
+    warnings = data.get("parse_warnings", [])
+    if not (isinstance(warnings, list) and all(isinstance(w, str) for w in warnings)):
+        errors.append("top level: parse_warnings should be a list of strings")
 
     if "packet_summary" in data:
         check_keys(data["packet_summary"], PACKET_SUMMARY_KEYS, "packet_summary", errors)

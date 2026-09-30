@@ -41,6 +41,7 @@
       }
     }
   ],
+  "parse_warnings": [],
   "findings": [
     {
       "finding_id": "F001",

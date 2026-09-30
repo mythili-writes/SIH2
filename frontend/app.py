@@ -9,6 +9,7 @@ renders the result. Defaults to offline mode so the demo never needs an API key.
 """
 
 import json
+import logging
 import os
 import sys
 
@@ -22,6 +23,7 @@ import config  # noqa: E402
 from logging_setup import configure_logging  # noqa: E402
 from frontend.pipeline import (  # noqa: E402
     SCOPE_NOTE,
+    CaptureError,
     build_executive_pdf,
     evidence_by_finding,
     list_samples,
@@ -55,6 +57,8 @@ SEQ = ["#f4f4f2", "#cde2fb", "#86b6ef", "#3987e5", "#1c5cab"]
 SEQ_INK = ["#0b0b0b", "#0b0b0b", "#0b0b0b", "#ffffff", "#ffffff"]
 
 SEVERITY_ORDER = ["Critical", "High", "Medium", "Low"]
+
+log = logging.getLogger("frontend.app")
 
 
 CSS = """
@@ -248,6 +252,22 @@ def bar_chart(pairs, max_value=1.0):
 def per_session_lines(text):
     """Split a technical-report string ("Session 1: ... | Session 2: ...") into lines."""
     return [part.strip() for part in str(text or "").split(" | ") if part.strip()]
+
+
+def safe_render(title, render, *args):
+    """Run one tab body; if it fails, show a short error in that tab only.
+
+    A rendering bug in one section must not blank every other section, and the
+    user should never see a raw traceback. The traceback goes to the log.
+    """
+    try:
+        render(*args)
+    except Exception as exc:
+        log.exception("tab render failed tab=%s", title)
+        st.error(
+            "The %s section could not be displayed (%s). The rest of the report is "
+            "unaffected; details were written to logs/app.log." % (title, type(exc).__name__)
+        )
 
 
 def session_label(session_id):
@@ -832,6 +852,7 @@ def main():
             kind, payload, analyse = "sample", match[0], True
 
     if analyse and payload is not None:
+        name = payload.name if kind == "upload" else os.path.basename(payload)
         with st.spinner("Parsing capture and scoring the configuration..."):
             try:
                 if kind == "upload":
@@ -843,15 +864,25 @@ def main():
                 st.session_state["analysis"] = analysis
                 st.session_state["report"] = report
                 st.session_state["error"] = None
+            except CaptureError as exc:
+                # Bad input: the reason is written for the user.
+                log.warning("capture rejected file=%s reason=%s", name, exc)
+                st.session_state["error"] = str(exc)
+                st.session_state.pop("report", None)
             except Exception as exc:
-                st.session_state["error"] = "%s: %s" % (type(exc).__name__, exc)
+                # A bug, not bad input: keep the traceback out of the UI.
+                log.exception("analysis failed file=%s", name)
+                st.session_state["error"] = (
+                    "an unexpected error occurred (%s). Details were written to logs/app.log."
+                    % type(exc).__name__
+                )
                 st.session_state.pop("report", None)
 
     if st.session_state.get("error"):
-        st.error("Analysis failed - %s" % st.session_state["error"])
+        st.error("Could not parse this capture: %s" % st.session_state["error"])
         st.caption(
-            "The capture may not be a readable pcap/pcapng. Try one of the bundled "
-            "samples to confirm the pipeline itself is working."
+            "Upload a .pcap or .pcapng file captured with tcpdump, Wireshark or similar. "
+            "Try one of the bundled samples to confirm the pipeline itself is working."
         )
         return
 
@@ -866,6 +897,8 @@ def main():
         "Capture: **%s**  |  Explanations: %s"
         % (report.get("file_name", "-"), "built-in rules" if offline else "Claude when available")
     )
+    for warning in as_list(analysis.get("parse_warnings")):
+        st.warning(warning)
 
     tabs = st.tabs(
         [
@@ -879,19 +912,19 @@ def main():
         ]
     )
     with tabs[0]:
-        render_overview(report, analysis)
+        safe_render("Overview", render_overview, report, analysis)
     with tabs[1]:
-        render_findings(report, analysis)
+        safe_render("Findings", render_findings, report, analysis)
     with tabs[2]:
-        render_sessions(report)
+        safe_render("Sessions", render_sessions, report)
     with tabs[3]:
-        render_traffic(report)
+        safe_render("Traffic Analysis", render_traffic, report)
     with tabs[4]:
-        render_threat_matrix(report)
+        safe_render("Threat Matrix", render_threat_matrix, report)
     with tabs[5]:
-        render_executive(report)
+        safe_render("Executive Report", render_executive, report)
     with tabs[6]:
-        render_technical(report, analysis)
+        safe_render("Technical Report", render_technical, report, analysis)
 
 
 if __name__ == "__main__":
