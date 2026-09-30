@@ -64,7 +64,9 @@ def test_bad_overrides_fall_back_and_are_recorded(monkeypatch, name, value):
 
 def test_env_example_documents_every_variable_the_code_reads():
     """Every os.environ / _env_* read in the codebase must appear in .env.example."""
-    pattern = re.compile(r"""(?:environ(?:\.get)?\(\s*|environ\[\s*|_env_\w+\(\s*)["']([A-Z_]+)["']""")
+    pattern = re.compile(
+        r"""(?:environ(?:\.get)?\(\s*|environ\[\s*|_env_\w+\(\s*)["']([A-Z_]+)["']"""
+    )
     read = set()
     for folder in ("backend", "ai_engine", "frontend", "."):
         base = os.path.join(ROOT, folder)

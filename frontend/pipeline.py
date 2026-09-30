@@ -104,9 +104,7 @@ def severity_counts(findings):
 
 def session_risk(findings, session_id):
     """(score, level) for one session, using the engine's own overall-risk formula."""
-    own = [
-        f for f in findings or [] if isinstance(f, dict) and f.get("session_id") == session_id
-    ]
+    own = [f for f in findings or [] if isinstance(f, dict) and f.get("session_id") == session_id]
     return scorer.overall_risk(own)
 
 

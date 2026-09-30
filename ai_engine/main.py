@@ -26,10 +26,24 @@ else:  # run as a script: python ai_engine/main.py
 log = logging.getLogger("ai_engine.main")
 
 SEVERITIES = ("Critical", "High", "Medium", "Low")
-FINDING_KEYS = ("finding_id", "session_id", "category", "issue", "severity", "risk_score",
-                "explanation", "recommendation", "reference")
-TECHNICAL_KEYS = ("protocol_identification", "cipher_suite_analysis", "sa_analysis",
-                  "metadata_exposure", "compliance_notes")
+FINDING_KEYS = (
+    "finding_id",
+    "session_id",
+    "category",
+    "issue",
+    "severity",
+    "risk_score",
+    "explanation",
+    "recommendation",
+    "reference",
+)
+TECHNICAL_KEYS = (
+    "protocol_identification",
+    "cipher_suite_analysis",
+    "sa_analysis",
+    "metadata_exposure",
+    "compliance_notes",
+)
 
 
 def _safe(part, func, default):
@@ -100,42 +114,65 @@ def _build(analysis):
     raw_findings = _clean_findings(analysis.get("findings"))
 
     findings, explain_mode = _safe(
-        "explainer", lambda: explainer.explain_findings(raw_findings),
-        ([dict(f, explanation="", recommendation="", reference="") for f in raw_findings], "none"))
-    findings = _safe("risk scoring", lambda: scorer.score_findings(findings),
-                     [dict(f, risk_score=0) for f in findings])
+        "explainer",
+        lambda: explainer.explain_findings(raw_findings),
+        ([dict(f, explanation="", recommendation="", reference="") for f in raw_findings], "none"),
+    )
+    findings = _safe(
+        "risk scoring",
+        lambda: scorer.score_findings(findings),
+        [dict(f, risk_score=0) for f in findings],
+    )
     findings = [_contract_finding(f) for f in findings]
 
-    risk_score, risk_level = _safe("overall risk", lambda: scorer.overall_risk(findings), (0, "Low"))
+    risk_score, risk_level = _safe(
+        "overall risk", lambda: scorer.overall_risk(findings), (0, "Low")
+    )
     traffic_analysis = _safe("traffic model", lambda: traffic_model.predict_sessions(sessions), [])
     confidence = _safe(
         "AI confidence",
         lambda: scorer.ai_confidence(
-            sessions, [t["traffic_confidence"] for t in traffic_analysis if t["traffic_confidence"] > 0]),
-        0.0)
+            sessions,
+            [t["traffic_confidence"] for t in traffic_analysis if t["traffic_confidence"] > 0],
+        ),
+        0.0,
+    )
     threat_matrix = _safe("threat matrix", lambda: scorer.build_threat_matrix(findings), [])
 
     executive_report = _safe(
         "executive report",
-        lambda: report_builder.build_executive_report(findings, risk_score, risk_level, traffic_analysis),
-        {"headline": "The report could not be fully generated.", "key_points": [],
-         "business_impact": "", "top_actions": []})
+        lambda: report_builder.build_executive_report(
+            findings, risk_score, risk_level, traffic_analysis
+        ),
+        {
+            "headline": "The report could not be fully generated.",
+            "key_points": [],
+            "business_impact": "",
+            "top_actions": [],
+        },
+    )
     technical_report = _safe(
         "technical report",
-        lambda: report_builder.build_technical_report(sessions, findings, analysis.get("ip_version") or "Unknown"),
-        {key: "Not available." for key in TECHNICAL_KEYS})
-    summary = _safe("summary", lambda: report_builder.build_summary(risk_level, findings, traffic_analysis),
-                    f"Overall risk is {risk_level.lower()}.")
+        lambda: report_builder.build_technical_report(
+            sessions, findings, analysis.get("ip_version") or "Unknown"
+        ),
+        {key: "Not available." for key in TECHNICAL_KEYS},
+    )
+    summary = _safe(
+        "summary",
+        lambda: report_builder.build_summary(risk_level, findings, traffic_analysis),
+        f"Overall risk is {risk_level.lower()}.",
+    )
 
     log.info(
-            "report built file=%s risk=%s level=%s findings=%d sessions=%d explanations=%s seconds=%.2f",
-            os.path.basename(str(analysis.get("file_name") or "Unknown")),
-            risk_score,
-            risk_level,
-            len(findings),
-            len(sessions),
-            explain_mode,
-            time.perf_counter() - started,
+        "report built file=%s risk=%s level=%s findings=%d sessions=%d explanations=%s seconds=%.2f",
+        os.path.basename(str(analysis.get("file_name") or "Unknown")),
+        risk_score,
+        risk_level,
+        len(findings),
+        len(sessions),
+        explain_mode,
+        time.perf_counter() - started,
     )
     return {
         "file_name": str(analysis.get("file_name") or "Unknown"),

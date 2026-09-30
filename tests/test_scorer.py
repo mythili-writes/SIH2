@@ -51,8 +51,16 @@ def test_overall_risk(severities, expected):
 
 @pytest.mark.parametrize(
     "score, level",
-    [(100, "Critical"), (80, "Critical"), (79, "High"), (60, "High"), (59, "Medium"),
-     (35, "Medium"), (34, "Low"), (0, "Low")],
+    [
+        (100, "Critical"),
+        (80, "Critical"),
+        (79, "High"),
+        (60, "High"),
+        (59, "Medium"),
+        (35, "Medium"),
+        (34, "Low"),
+        (0, "Low"),
+    ],
 )
 def test_risk_level_boundaries(score, level):
     assert scorer.risk_level(score) == level

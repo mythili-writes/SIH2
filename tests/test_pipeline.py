@@ -72,7 +72,9 @@ def test_backend_and_engine_clis(tmp_path, sample_path):
     code, out, _err = run_cli("backend/main.py", sample_path("weak"), str(analysis_path))
     assert code == 0 and "10 finding(s)" in out
 
-    code, out, _err = run_cli("ai_engine/main.py", str(analysis_path), str(report_path), "--offline")
+    code, out, _err = run_cli(
+        "ai_engine/main.py", str(analysis_path), str(report_path), "--offline"
+    )
     assert code == 0 and "Risk score:    80 (Critical)" in out
     assert check_contract_b(json.loads(report_path.read_text())) == []
 

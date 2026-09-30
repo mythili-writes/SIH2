@@ -83,7 +83,9 @@ def ikev2_sa_init(transforms, notify=None, idi=False):
     for transform in transforms[1:]:
         chain = chain / transform
     msg = IKEv2(init_SPI=b"\x33" * 8, resp_SPI=b"\x00" * 8, exch_type="IKE_SA_INIT")
-    msg = msg / IKEv2_SA(prop=IKEv2_Proposal(proposal=1, proto="IKE", trans_nb=len(transforms), trans=chain))
+    msg = msg / IKEv2_SA(
+        prop=IKEv2_Proposal(proposal=1, proto="IKE", trans_nb=len(transforms), trans=chain)
+    )
     if notify is not None:
         msg = msg / IKEv2_Notify(type=notify)
     if idi:

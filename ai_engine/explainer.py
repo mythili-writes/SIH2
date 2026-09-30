@@ -34,7 +34,7 @@ RULES = [
     {
         "keywords": ["3des", "triple des", "triple-des"],
         "explanation": "3DES uses a small 64-bit block, so an attacker who records enough traffic "
-                       "can recover data (the Sweet32 attack).",
+        "can recover data (the Sweet32 attack).",
         "recommendation": "Replace 3DES with AES-256-GCM.",
         "reference": "NIST SP 800-131A",
     },
@@ -47,7 +47,7 @@ RULES = [
     {
         "keywords": ["cbc"],
         "explanation": "CBC mode still keeps data secret, but it has no built-in integrity check "
-                       "and depends on a separate hash.",
+        "and depends on a separate hash.",
         "recommendation": "Prefer AES-GCM, which encrypts and protects integrity in one step.",
         "reference": "RFC 8221",
     },
@@ -66,7 +66,7 @@ RULES = [
     {
         "keywords": ["dh_group=1", "dh_group=2", "dh group 1", "dh group 2"],
         "explanation": "DH groups 1 and 2 use 768-bit and 1024-bit keys, which are too short "
-                       "and open to the Logjam attack.",
+        "and open to the Logjam attack.",
         "recommendation": "Use DH group 14, 19 or 20.",
         "reference": "RFC 8247",
     },
@@ -79,7 +79,7 @@ RULES = [
     {
         "keywords": ["aggressive"],
         "explanation": "Aggressive Mode sends the peer identity and a hash of the pre-shared key "
-                       "without protection. An attacker can capture it and crack the key offline.",
+        "without protection. An attacker can capture it and crack the key offline.",
         "recommendation": "Use IKEv2, or Main Mode if IKEv1 cannot be removed yet.",
         "reference": "NIST SP 800-77r1",
     },
@@ -92,21 +92,21 @@ RULES = [
     {
         "keywords": ["pre-shared", "psk"],
         "explanation": "A pre-shared key can be guessed if it is weak, and the same key is often "
-                       "shared across many devices.",
+        "shared across many devices.",
         "recommendation": "Use certificate-based authentication.",
         "reference": "NIST SP 800-77r1",
     },
     {
         "keywords": ["pfs", "forward secrecy"],
         "explanation": "Without Perfect Forward Secrecy, anyone who later steals a key can decrypt "
-                       "old recorded traffic.",
+        "old recorded traffic.",
         "recommendation": "Enable PFS with DH group 19 or 20.",
         "reference": "NIST SP 800-77r1",
     },
     {
         "keywords": ["lifetime"],
         "explanation": "The key lifetime is outside the normal range, so a key is used for too long "
-                       "or is changed too often.",
+        "or is changed too often.",
         "recommendation": "Use 28800 seconds for the IKE SA and 3600 seconds for the IPsec SA.",
         "reference": "NIST SP 800-77r1",
     },
@@ -125,14 +125,14 @@ RULES = [
     {
         "keywords": ["transport", "mode"],
         "explanation": "Transport mode leaves the original IP headers visible, so eavesdroppers can see "
-                       "which hosts are talking.",
+        "which hosts are talking.",
         "recommendation": "Use tunnel mode for site-to-site VPNs.",
         "reference": "NIST SP 800-77r1",
     },
     {
         "keywords": ["compliance", "compliant", "fips"],
         "explanation": "This cryptographic suite is not on the approved list, so the connection "
-                       "does not meet compliance rules.",
+        "does not meet compliance rules.",
         "recommendation": "Use a NIST-approved suite, such as AES-256-GCM with SHA-256 and DH group 19 or 20.",
         "reference": "NIST SP 800-77r1",
     },
@@ -147,7 +147,7 @@ USER_PROMPT = (
     "For each finding below, write:\n"
     "- explanation: 1 to 2 short sentences in simple English saying what is wrong and why it matters\n"
     "- recommendation: one short sentence saying what to change\n"
-    "- reference: one standard, for example \"RFC 8247\" or \"NIST SP 800-77r1\"\n"
+    '- reference: one standard, for example "RFC 8247" or "NIST SP 800-77r1"\n'
     "Return ONLY a JSON list of objects with the keys finding_id, explanation, recommendation, reference. "
     "Include one object per finding and copy finding_id exactly.\n\n"
     "Findings:\n"
@@ -190,7 +190,7 @@ def rule_explanation(finding):
     severity = str(finding.get("severity") or "unknown").lower()
     return {
         "explanation": f"This {category} setting has a {severity}-severity weakness that makes "
-                       f"the IPsec connection less safe.",
+        f"the IPsec connection less safe.",
         "recommendation": f"Review the {category} setting and change it to a value recommended by current NIST guidance.",
         "reference": "NIST SP 800-77r1",
     }
@@ -235,7 +235,7 @@ def _ask_llm(findings):
     start, end = text.find("["), text.rfind("]")
     if start == -1 or end < start:
         raise ValueError("reply has no JSON list")
-    items = json.loads(text[start:end + 1])
+    items = json.loads(text[start : end + 1])
     if not isinstance(items, list):
         raise ValueError("reply is not a JSON list")
 

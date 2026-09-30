@@ -72,6 +72,7 @@ def _payload(target_total, header_bytes):
 # weak: IPv4 / IKEv1 Aggressive Mode
 # --------------------------------------------------------------------------
 
+
 def build_weak():
     """IPv4 IKEv1 Aggressive Mode session with every weakness the demo needs, plus VoIP-shaped ESP."""
     initiator, responder = "10.0.0.1", "203.0.113.9"
@@ -91,9 +92,7 @@ def build_weak():
             ("LifeDuration", 172800),
         ],
     )
-    sa = ISAKMP_payload_SA(
-        prop=ISAKMP_payload_Proposal(proto="ISAKMP", trans=p1_transform)
-    )
+    sa = ISAKMP_payload_SA(prop=ISAKMP_payload_Proposal(proto="ISAKMP", trans=p1_transform))
     msg1 = (
         ISAKMP(init_cookie=icookie, resp_cookie=b"\x00" * 8, exch_type=4, flags=0, id=0)
         / sa
@@ -147,8 +146,10 @@ def build_weak():
     for index, seq in enumerate(seqs):
         src, dst = (initiator, responder) if index % 2 == 0 else (responder, initiator)
         header = 14 + 20 + 8  # Ether + IPv4 + ESP header
-        pkt = ETHER / IP(src=src, dst=dst, proto=50) / ESP(
-            spi=spi, seq=seq, data=_payload(150, header)
+        pkt = (
+            ETHER
+            / IP(src=src, dst=dst, proto=50)
+            / ESP(spi=spi, seq=seq, data=_payload(150, header))
         )
         pkt.time = t
         t += 0.020
@@ -168,6 +169,7 @@ def build_weak():
 # strong: IPv4 / IKEv2
 # --------------------------------------------------------------------------
 
+
 def build_strong():
     """IPv4 IKEv2 session with AES-256-GCM, SHA-256, DH 14 and PFS, plus bulk-transfer ESP."""
     initiator, responder = "192.168.50.1", "198.51.100.20"
@@ -179,8 +181,7 @@ def build_strong():
     # length=12 is required whenever a key-length attribute is attached: Scapy
     # only emits `key_length` when `length > 8`, and never computes it for us.
     ike_transforms = (
-        IKEv2_Transform(transform_type="Encryption", transform_id=20,
-                        key_length=256, length=12)
+        IKEv2_Transform(transform_type="Encryption", transform_id=20, key_length=256, length=12)
         / IKEv2_Transform(transform_type="PRF", transform_id=5)
         / IKEv2_Transform(transform_type="GroupDesc", transform_id=14, next_payload=0)
     )
@@ -225,8 +226,7 @@ def build_strong():
 
     # CREATE_CHILD_SA carrying a fresh KE payload: this is PFS.
     child_transforms = (
-        IKEv2_Transform(transform_type="Encryption", transform_id=20,
-                        key_length=256, length=12)
+        IKEv2_Transform(transform_type="Encryption", transform_id=20, key_length=256, length=12)
         / IKEv2_Transform(transform_type="GroupDesc", transform_id=14)
         / IKEv2_Transform(transform_type="Extended Sequence Number", transform_id=1, next_payload=0)
     )
@@ -234,8 +234,12 @@ def build_strong():
         IKEv2(init_SPI=ispi, resp_SPI=rspi, exch_type="CREATE_CHILD_SA", flags="Initiator", id=2)
         / IKEv2_SA(
             prop=IKEv2_Proposal(
-                proposal=1, proto="ESP", SPIsize=4, SPI=b"\xca\xfe\xf0\x0d",
-                trans_nb=3, trans=child_transforms,
+                proposal=1,
+                proto="ESP",
+                SPIsize=4,
+                SPI=b"\xca\xfe\xf0\x0d",
+                trans_nb=3,
+                trans=child_transforms,
             )
         )
         / IKEv2_KE(group=14, ke=b"\x45" * 256)
@@ -256,8 +260,10 @@ def build_strong():
         src, dst = (initiator, responder) if upstream else (responder, initiator)
         target = 1420 if upstream else 110
         header = 14 + 20 + 8
-        pkt = ETHER / IP(src=src, dst=dst, proto=50) / ESP(
-            spi=spi, seq=index + 1, data=_payload(target, header)
+        pkt = (
+            ETHER
+            / IP(src=src, dst=dst, proto=50)
+            / ESP(spi=spi, seq=index + 1, data=_payload(target, header))
         )
         pkt.time = t
         t += 0.003
@@ -269,6 +275,7 @@ def build_strong():
 # --------------------------------------------------------------------------
 # mixed: IPv6 / IKEv1 Main Mode, transport mode
 # --------------------------------------------------------------------------
+
 
 def build_mixed():
     """IPv6 IKEv1 Main Mode session in transport mode with mid-strength crypto, plus web-shaped ESP."""
@@ -288,22 +295,26 @@ def build_mixed():
             ("LifeDuration", 120),
         ],
     )
-    sa = ISAKMP_payload_SA(
-        prop=ISAKMP_payload_Proposal(proto="ISAKMP", trans=p1_transform)
-    )
+    sa = ISAKMP_payload_SA(prop=ISAKMP_payload_Proposal(proto="ISAKMP", trans=p1_transform))
 
     # Main mode messages 1-2: SA proposal, identities not yet sent.
     packets.append(
-        ETHER / IPv6(src=initiator, dst=responder) / UDP(sport=500, dport=500)
+        ETHER
+        / IPv6(src=initiator, dst=responder)
+        / UDP(sport=500, dport=500)
         / (ISAKMP(init_cookie=icookie, resp_cookie=b"\x00" * 8, exch_type=2, flags=0) / sa)
     )
     packets.append(
-        ETHER / IPv6(src=responder, dst=initiator) / UDP(sport=500, dport=500)
+        ETHER
+        / IPv6(src=responder, dst=initiator)
+        / UDP(sport=500, dport=500)
         / (ISAKMP(init_cookie=icookie, resp_cookie=rcookie, exch_type=2, flags=0) / sa)
     )
     # Messages 3-4: key exchange.
     packets.append(
-        ETHER / IPv6(src=initiator, dst=responder) / UDP(sport=500, dport=500)
+        ETHER
+        / IPv6(src=initiator, dst=responder)
+        / UDP(sport=500, dport=500)
         / (
             ISAKMP(init_cookie=icookie, resp_cookie=rcookie, exch_type=2, flags=0)
             / ISAKMP_payload_KE(ke=b"\x31" * 192)
@@ -311,7 +322,9 @@ def build_mixed():
         )
     )
     packets.append(
-        ETHER / IPv6(src=responder, dst=initiator) / UDP(sport=500, dport=500)
+        ETHER
+        / IPv6(src=responder, dst=initiator)
+        / UDP(sport=500, dport=500)
         / (
             ISAKMP(init_cookie=icookie, resp_cookie=rcookie, exch_type=2, flags=0)
             / ISAKMP_payload_KE(ke=b"\x33" * 192)
@@ -321,7 +334,9 @@ def build_mixed():
     # Messages 5-6: identities, sent with the encryption flag set. Main mode
     # protects them, so identity_exposed must come out False.
     packets.append(
-        ETHER / IPv6(src=initiator, dst=responder) / UDP(sport=500, dport=500)
+        ETHER
+        / IPv6(src=initiator, dst=responder)
+        / UDP(sport=500, dport=500)
         / (
             ISAKMP(init_cookie=icookie, resp_cookie=rcookie, exch_type=2, flags=1)
             / ISAKMP_payload_ID(IDtype=5, IdentData=b"\x20\x01\x0d\xb8" + b"\x00" * 12)
@@ -361,8 +376,10 @@ def build_mixed():
         src, dst = (responder, initiator) if downstream else (initiator, responder)
         target = random.choice([1380, 1200, 900, 640, 320, 180])
         header = 14 + 40 + 8  # Ether + IPv6 + ESP header
-        pkt = ETHER / IPv6(src=src, dst=dst, nh=50) / ESP(
-            spi=spi, seq=index + 1, data=_payload(target, header)
+        pkt = (
+            ETHER
+            / IPv6(src=src, dst=dst, nh=50)
+            / ESP(spi=spi, seq=index + 1, data=_payload(target, header))
         )
         pkt.time = t
         t += random.uniform(0.04, 0.30)

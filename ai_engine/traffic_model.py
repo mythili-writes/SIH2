@@ -22,8 +22,16 @@ if _REPO_ROOT not in sys.path:  # also works when this file is run as a script
 
 import config  # noqa: E402  (repo-root config.py: the single source of settings)
 
-FEATURES = ["packet_count", "avg_packet_size", "min_packet_size", "max_packet_size",
-            "avg_inter_arrival_ms", "duration_seconds", "bytes_total", "upstream_ratio"]
+FEATURES = [
+    "packet_count",
+    "avg_packet_size",
+    "min_packet_size",
+    "max_packet_size",
+    "avg_inter_arrival_ms",
+    "duration_seconds",
+    "bytes_total",
+    "upstream_ratio",
+]
 CLASSES = ["VoIP", "WhatsApp", "Email", "Web Browsing", "ICMP", "Video Streaming", "File Transfer"]
 
 log = logging.getLogger("ai_engine.traffic_model")
@@ -38,20 +46,62 @@ TRAINING_NOTE = "Trained on synthetic size/timing data; ESP payload is never use
 # Per class: avg packet size in bytes (includes ~60 bytes ESP overhead), inter-arrival in ms,
 # upstream ratio, duration in s, and how far min/max sit below/above the average (fraction of avg).
 PROFILES = {
-    "VoIP": {"size": (130, 230), "iat": (18, 22), "up": (0.45, 0.55), "dur": (10, 120),
-             "below": (0.10, 0.35), "above": (0.10, 0.40)},
-    "WhatsApp": {"size": (200, 700), "iat": (40, 400), "up": (0.30, 0.60), "dur": (5, 60),
-                 "below": (0.60, 0.85), "above": (0.50, 1.50)},
-    "Email": {"size": (500, 1200), "iat": (5, 60), "up": (0.55, 0.85), "dur": (1, 10),
-              "below": (0.80, 0.92), "above": (0.30, 1.00)},
-    "Web Browsing": {"size": (500, 1000), "iat": (5, 50), "up": (0.10, 0.30), "dur": (2, 40),
-                     "below": (0.80, 0.92), "above": (0.50, 1.50)},
-    "ICMP": {"size": (90, 140), "iat": (900, 1100), "up": (0.45, 0.55), "dur": (3, 30),
-             "below": (0.00, 0.03), "above": (0.00, 0.03)},
-    "Video Streaming": {"size": (1100, 1350), "iat": (2, 12), "up": (0.02, 0.08), "dur": (30, 300),
-                        "below": (0.60, 0.90), "above": (0.05, 0.25)},
-    "File Transfer": {"size": (1350, 1420), "iat": (0.3, 3), "up": (0.01, 0.05), "dur": (5, 120),
-                      "below": (0.05, 0.25), "above": (0.00, 0.06)},
+    "VoIP": {
+        "size": (130, 230),
+        "iat": (18, 22),
+        "up": (0.45, 0.55),
+        "dur": (10, 120),
+        "below": (0.10, 0.35),
+        "above": (0.10, 0.40),
+    },
+    "WhatsApp": {
+        "size": (200, 700),
+        "iat": (40, 400),
+        "up": (0.30, 0.60),
+        "dur": (5, 60),
+        "below": (0.60, 0.85),
+        "above": (0.50, 1.50),
+    },
+    "Email": {
+        "size": (500, 1200),
+        "iat": (5, 60),
+        "up": (0.55, 0.85),
+        "dur": (1, 10),
+        "below": (0.80, 0.92),
+        "above": (0.30, 1.00),
+    },
+    "Web Browsing": {
+        "size": (500, 1000),
+        "iat": (5, 50),
+        "up": (0.10, 0.30),
+        "dur": (2, 40),
+        "below": (0.80, 0.92),
+        "above": (0.50, 1.50),
+    },
+    "ICMP": {
+        "size": (90, 140),
+        "iat": (900, 1100),
+        "up": (0.45, 0.55),
+        "dur": (3, 30),
+        "below": (0.00, 0.03),
+        "above": (0.00, 0.03),
+    },
+    "Video Streaming": {
+        "size": (1100, 1350),
+        "iat": (2, 12),
+        "up": (0.02, 0.08),
+        "dur": (30, 300),
+        "below": (0.60, 0.90),
+        "above": (0.05, 0.25),
+    },
+    "File Transfer": {
+        "size": (1350, 1420),
+        "iat": (0.3, 3),
+        "up": (0.01, 0.05),
+        "dur": (5, 120),
+        "below": (0.05, 0.25),
+        "above": (0.00, 0.06),
+    },
 }
 
 # Share of sessions blended part-way toward another class (mixed or unusual traffic),
@@ -67,21 +117,21 @@ CAPTURE_WINDOW = (1, 60)
 # One sentence per class, filled with the session's real numbers.
 SENTENCES = {
     "VoIP": "Small, regular packets (about {size} bytes) about {gap} ms apart with balanced traffic "
-            "({up}% upstream), typical of a voice call.",
+    "({up}% upstream), typical of a voice call.",
     "WhatsApp": "Medium packets (about {size} bytes) in bursts about {gap} ms apart with {up}% upstream, "
-                "typical of a messaging app such as WhatsApp.",
+    "typical of a messaging app such as WhatsApp.",
     "Email": "Medium to large packets (about {size} bytes) about {gap} ms apart, mostly upstream ({up}%), "
-             "typical of sending email.",
+    "typical of sending email.",
     "Web Browsing": "Mixed packet sizes (about {size} bytes on average) about {gap} ms apart, mostly downstream "
-                    "({up}% upstream), typical of web browsing.",
+    "({up}% upstream), typical of web browsing.",
     "ICMP": "Small, same-size packets (about {size} bytes) about {gap} ms apart with {up}% upstream, "
-            "typical of ping (ICMP) checks.",
+    "typical of ping (ICMP) checks.",
     "Video Streaming": "Large packets (about {size} bytes) about {gap} ms apart, almost all downstream "
-                       "({up}% upstream), typical of video streaming.",
+    "({up}% upstream), typical of video streaming.",
     "File Transfer": "Near-full-size packets (about {size} bytes) about {gap} ms apart, almost all one way "
-                     "({up}% upstream), typical of a large file transfer.",
+    "({up}% upstream), typical of a large file transfer.",
     "Unknown": "Packets averaging {size} bytes, about {gap} ms apart with {up}% upstream, "
-               "do not clearly match one application.",
+    "do not clearly match one application.",
 }
 
 
@@ -116,24 +166,28 @@ def generate_synthetic_data(n_per_class=300, seed=42):
             gap = p["iat"] * jitter()
             duration = p["dur"] * jitter()
             if rng.random() < CAPTURE_CUT_RATE:
-                window = math.exp(rng.uniform(math.log(CAPTURE_WINDOW[0]), math.log(CAPTURE_WINDOW[1])))
+                window = math.exp(
+                    rng.uniform(math.log(CAPTURE_WINDOW[0]), math.log(CAPTURE_WINDOW[1]))
+                )
                 duration = min(duration, window)
             upstream = min(1.0, p["up"] * jitter())
             count = max(5, int(round(duration * 1000 / gap)))
             min_size = min(avg, max(MIN_PACKET_SIZE, avg * (1 - p["below"])))
             max_size = max(avg, min(MAX_PACKET_SIZE, avg * (1 + p["above"])))
 
-            rows.append({
-                "packet_count": count,
-                "avg_packet_size": round(avg, 1),
-                "min_packet_size": int(min_size),
-                "max_packet_size": min(MAX_PACKET_SIZE, math.ceil(max_size)),
-                "avg_inter_arrival_ms": round(gap, 2),
-                "duration_seconds": round(duration, 2),
-                "bytes_total": int(round(count * avg)),
-                "upstream_ratio": round(upstream, 3),
-                "traffic_type": traffic_type,
-            })
+            rows.append(
+                {
+                    "packet_count": count,
+                    "avg_packet_size": round(avg, 1),
+                    "min_packet_size": int(min_size),
+                    "max_packet_size": min(MAX_PACKET_SIZE, math.ceil(max_size)),
+                    "avg_inter_arrival_ms": round(gap, 2),
+                    "duration_seconds": round(duration, 2),
+                    "bytes_total": int(round(count * avg)),
+                    "upstream_ratio": round(upstream, 3),
+                    "traffic_type": traffic_type,
+                }
+            )
     return rows
 
 
@@ -191,14 +245,18 @@ def train(extra_csv=None):
 
     X = np.array([[row[name] for name in FEATURES] for row in rows], dtype=float)
     y = np.array([row["traffic_type"] for row in rows])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=42
+    )
 
     model = RandomForestClassifier(n_estimators=150, random_state=42, class_weight="balanced")
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
     accuracy = accuracy_score(y_test, y_pred)
-    report = classification_report(y_test, y_pred, labels=CLASSES, output_dict=True, zero_division=0)
+    report = classification_report(
+        y_test, y_pred, labels=CLASSES, output_dict=True, zero_division=0
+    )
     matrix = confusion_matrix(y_test, y_pred, labels=CLASSES)
 
     print(f"Accuracy: {accuracy:.4f}  ({len(y_test)} test sessions out of {len(rows)})\n")
@@ -220,7 +278,9 @@ def train(extra_csv=None):
         "confusion_matrix": matrix.tolist(),
         "classes": CLASSES,
         "features": FEATURES,
-        "feature_importances": {name: round(float(v), 4) for name, v in zip(FEATURES, model.feature_importances_)},
+        "feature_importances": {
+            name: round(float(v), 4) for name, v in zip(FEATURES, model.feature_importances_)
+        },
         "n_samples": len(rows),
         "sklearn_version": sklearn.__version__,
         "note": TRAINING_NOTE,
@@ -261,9 +321,7 @@ def load_model():
     except FileNotFoundError:
         log.warning("traffic model not found; retraining file=%s", config.TRAFFIC_MODEL_PATH)
     except Exception as exc:
-        log.warning(
-            "traffic model could not be loaded reason=%s; retraining", type(exc).__name__
-        )
+        log.warning("traffic model could not be loaded reason=%s; retraining", type(exc).__name__)
 
     try:
         return train()
@@ -289,7 +347,10 @@ def _model_rankings(rows):
         raise RuntimeError("no traffic model")
     probabilities = model.predict_proba(np.array(rows, dtype=float))
     classes = [str(c) for c in model.classes_]
-    return [sorted(zip(classes, map(float, p)), key=lambda pair: pair[1], reverse=True) for p in probabilities]
+    return [
+        sorted(zip(classes, map(float, p)), key=lambda pair: pair[1], reverse=True)
+        for p in probabilities
+    ]
 
 
 def _rule_type(values):
@@ -367,7 +428,9 @@ def predict_sessions(sessions):
             predicted = _rule_type(values)
             confidence = RULE_CONFIDENCE if predicted != "Unknown" else 0.0
             top = [{"type": predicted, "probability": confidence}] if predicted != "Unknown" else []
-        results.append(_result(session_id, predicted, confidence, top, _describe(predicted, values)))
+        results.append(
+            _result(session_id, predicted, confidence, top, _describe(predicted, values))
+        )
     return results
 
 
@@ -383,14 +446,21 @@ def main():
         with open(args[1], encoding="utf-8") as f:
             analysis = json.load(f)
         for result in predict_sessions(analysis.get("sessions", [])):
-            top = ", ".join(f"{p['type']} {p['probability']:.2f}" for p in result["top_predictions"]) or "-"
+            top = (
+                ", ".join(f"{p['type']} {p['probability']:.2f}" for p in result["top_predictions"])
+                or "-"
+            )
             print(f"\nSession {result['session_id']}")
-            print(f"  Predicted:  {result['predicted_traffic_type']} (confidence {result['traffic_confidence']:.2f})")
+            print(
+                f"  Predicted:  {result['predicted_traffic_type']} (confidence {result['traffic_confidence']:.2f})"
+            )
             print(f"  Top 3:      {top}")
             print(f"  Inference:  {result['metadata_inference']}")
     else:
-        print("Usage:\n  python ai_engine/traffic_model.py train [extra.csv]\n"
-              "  python ai_engine/traffic_model.py predict <analysis.json>")
+        print(
+            "Usage:\n  python ai_engine/traffic_model.py train [extra.csv]\n"
+            "  python ai_engine/traffic_model.py predict <analysis.json>"
+        )
         sys.exit(2)
 
 

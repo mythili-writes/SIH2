@@ -20,7 +20,6 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import config  # noqa: E402
-from logging_setup import configure_logging  # noqa: E402
 from frontend.pipeline import (  # noqa: E402
     SCOPE_NOTE,
     CaptureError,
@@ -33,6 +32,7 @@ from frontend.pipeline import (  # noqa: E402
     session_risk,
     severity_counts,
 )
+from logging_setup import configure_logging  # noqa: E402
 
 # --------------------------------------------------------------------------
 # palette
@@ -372,7 +372,9 @@ def render_findings(report, analysis):
     st.write("")
     st.markdown("#### Detail and remediation")
     for f in findings:
-        with st.expander("%s  -  %s  (%s)" % (f.get("finding_id"), f.get("issue"), f.get("severity"))):
+        with st.expander(
+            "%s  -  %s  (%s)" % (f.get("finding_id"), f.get("issue"), f.get("severity"))
+        ):
             st.markdown(
                 '<div class="kv"><b>Severity:</b> %s &nbsp; <b>Category:</b> %s '
                 "&nbsp; <b>Session:</b> %s &nbsp; <b>Risk score:</b> %s</div>"

@@ -17,7 +17,6 @@ import os
 import struct
 import time
 
-from scapy.utils import PcapReader
 from scapy.layers.inet import IP, UDP
 from scapy.layers.inet6 import IPv6
 from scapy.layers.ipsec import AH, ESP
@@ -29,9 +28,11 @@ from scapy.layers.isakmp import (
     ISAKMP_payload_SA,
     ISAKMP_payload_Transform,
 )
+from scapy.utils import PcapReader
 
 try:
     import scapy.contrib.ikev2 as ikev2
+
     HAVE_IKEV2 = True
 except Exception:  # pragma: no cover - contrib module should always be present
     ikev2 = None
@@ -67,7 +68,7 @@ IKE_PORTS = (500, 4500)
 # IKEv1 ISAKMP exchange types -> human label.
 IKEV1_EXCHANGE = {
     1: "Base",
-    2: "Main",            # "identity protection"
+    2: "Main",  # "identity protection"
     3: "Authentication Only",
     4: "Aggressive",
     5: "Informational",
@@ -202,6 +203,7 @@ NOTIFY_NAT_DETECTION = (16388, 16389)
 # small helpers
 # --------------------------------------------------------------------------
 
+
 def _ip_layer(pkt):
     """Return (src, dst, protocol_number, version) for IPv4 or IPv6, or None."""
     if IP in pkt:
@@ -249,6 +251,7 @@ def _ikev2_cipher_name(transform_id, key_length):
 # packet classification
 # --------------------------------------------------------------------------
 
+
 def classify_packet(pkt):
     """Bucket a packet into 'ike' | 'esp' | 'ah' | 'other'."""
     info = _ip_layer(pkt)
@@ -293,6 +296,7 @@ def _ike_version(raw):
 # --------------------------------------------------------------------------
 # IKEv1 extraction
 # --------------------------------------------------------------------------
+
 
 def _walk(layer):
     """Yield every layer in a dissected packet, tolerating truncated payloads."""
@@ -459,6 +463,7 @@ def _apply_ikev1_phase2(state, attrs):
 # IKEv2 extraction
 # --------------------------------------------------------------------------
 
+
 def _parse_ikev2(raw, state, pkt_meta):
     """Update `state` from one IKEv2 message."""
     if not HAVE_IKEV2:
@@ -514,9 +519,7 @@ def _parse_ikev2(raw, state, pkt_meta):
                 proto = int(getattr(proposal, "proto", 1) or 1)
                 if proto in (2, 3):  # AH / ESP child SA
                     state["negotiated_ipsec"].add("AH" if proto == 2 else "ESP")
-                _apply_ikev2_proposal(
-                    state, proposal, is_child=(proto in (2, 3) or child_sa)
-                )
+                _apply_ikev2_proposal(state, proposal, is_child=(proto in (2, 3) or child_sa))
 
     if child_sa and saw_ke_here:
         state["pfs_enabled"] = True
@@ -583,6 +586,7 @@ def _apply_ikev2_proposal(state, proposal, is_child):
 # --------------------------------------------------------------------------
 # ESP / AH statistics
 # --------------------------------------------------------------------------
+
 
 def _esp_seq(pkt):
     """(spi, seq) from an ESP or AH packet, including UDP-encapsulated ESP."""
@@ -654,8 +658,11 @@ def _infer_mode_from_esp(records, explicit_mode):
     # A tunnel-mode ESP packet always carries a full inner IP header (>=20 bytes)
     # on top of the IV and trailer, so the smallest packet is meaningfully larger
     # than a transport-mode one. Below the threshold we decline to guess.
-    smallest_payload = min(r["esp_payload"] for r in records if r["esp_payload"] is not None) \
-        if any(r["esp_payload"] is not None for r in records) else None
+    smallest_payload = (
+        min(r["esp_payload"] for r in records if r["esp_payload"] is not None)
+        if any(r["esp_payload"] is not None for r in records)
+        else None
+    )
     if smallest_payload is None:
         return UNKNOWN, False
     if smallest_payload >= 56:
@@ -724,6 +731,7 @@ def _confidence(session, state):
 # --------------------------------------------------------------------------
 # main entry point
 # --------------------------------------------------------------------------
+
 
 def _new_state():
     return {
@@ -960,7 +968,9 @@ def parse_pcap(path):
     if total == 0:
         warnings.append("The capture contains no packets.")
     elif not order:
-        warnings.append("No IKE, ESP or AH traffic was found, so there is no IPsec session to assess.")
+        warnings.append(
+            "No IKE, ESP or AH traffic was found, so there is no IPsec session to assess."
+        )
 
     sessions = []
     for index, key in enumerate(order):
@@ -990,8 +1000,11 @@ def parse_pcap(path):
         if replay is None and state["esn"] is True:
             replay = True
 
-        src_ip, dst_ip = (initiator, key[1] if key[0] == initiator else key[0]) \
-            if initiator else (key[0], key[1])
+        src_ip, dst_ip = (
+            (initiator, key[1] if key[0] == initiator else key[0])
+            if initiator
+            else (key[0], key[1])
+        )
 
         # Key order follows the canonical Contract A (ai_engine/test_data).
         session = {

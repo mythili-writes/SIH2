@@ -58,10 +58,15 @@ WEAK_DH_GROUPS = {
     1: ("High", "Weak Diffie-Hellman group negotiated: group 1 (768-bit MODP)"),
     2: ("High", "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)"),
     5: ("Medium", "Weak Diffie-Hellman group negotiated: group 5 (1536-bit MODP)"),
-    22: ("Medium", "Weak Diffie-Hellman group negotiated: group 22 (1024-bit MODP with 160-bit POS)"),
-    23: ("Medium", "Weak Diffie-Hellman group negotiated: group 23 (2048-bit MODP with 224-bit POS)"),
+    22: (
+        "Medium",
+        "Weak Diffie-Hellman group negotiated: group 22 (1024-bit MODP with 160-bit POS)",
+    ),
+    23: (
+        "Medium",
+        "Weak Diffie-Hellman group negotiated: group 23 (2048-bit MODP with 224-bit POS)",
+    ),
 }
-
 
 
 def _norm(value):
@@ -102,9 +107,7 @@ def _approved_suite(encryption, hash_alg, dh_group):
 
     key_bits = re.search(r"(128|192|256)", enc)
     if not key_bits or int(key_bits.group(1)) < 256:
-        return False, (
-            "cipher %s does not meet the AES-256 minimum for non-AEAD modes" % enc
-        )
+        return False, ("cipher %s does not meet the AES-256 minimum for non-AEAD modes" % enc)
 
     if _is_unknown(hash_alg):
         return None, "integrity algorithm could not be determined"
@@ -226,7 +229,8 @@ def evaluate_session(session, builder):
                 "Protocol",
                 "IKEv1 Aggressive Mode in use",
                 "High",
-                "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500 for session %s" % peer,
+                "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500 for session %s"
+                % peer,
             )
         else:
             builder.add(
@@ -276,8 +280,7 @@ def evaluate_session(session, builder):
             builder.add(
                 sid,
                 "Lifetime",
-                "SA lifetime below the recommended minimum: %ds (< %ds)"
-                % (int(lifetime), minimum),
+                "SA lifetime below the recommended minimum: %ds (< %ds)" % (int(lifetime), minimum),
                 "Low",
                 "IKE SA lifetime attribute decoded as %d seconds for session %s; "
                 "excessive rekeying destabilises the tunnel" % (int(lifetime), peer),

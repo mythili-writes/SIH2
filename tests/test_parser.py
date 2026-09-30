@@ -62,7 +62,9 @@ def test_ikev1_aggressive_mode_weak_session(tmp_path):
 
 def test_aes_key_length_attribute_is_folded_into_the_cipher_name(tmp_path):
     transforms = [("Encryption", "AES-CBC"), ("KeyLength", 256), ("Hash", "SHA2-256")]
-    session = only_session(pcaps.write(tmp_path / "a.pcap", [pcaps.udp500(pcaps.isakmp_phase1(transforms))]))
+    session = only_session(
+        pcaps.write(tmp_path / "a.pcap", [pcaps.udp500(pcaps.isakmp_phase1(transforms))])
+    )
     assert session["encryption"] == "AES-256-CBC"
     assert session["hash"] == "SHA256"
 
@@ -71,7 +73,9 @@ def test_main_mode_identity_is_protected(tmp_path):
     packets = [
         pcaps.udp500(pcaps.isakmp_phase1(WEAK_P1, exch_type=2)),
         # Message 5: the ID payload rides in an encrypted message (flags bit 0).
-        pcaps.udp500(pcaps.isakmp_phase1(WEAK_P1, exch_type=2, flags=1, payloads=[pcaps.id_payload()])),
+        pcaps.udp500(
+            pcaps.isakmp_phase1(WEAK_P1, exch_type=2, flags=1, payloads=[pcaps.id_payload()])
+        ),
     ]
     session = only_session(pcaps.write(tmp_path / "m.pcap", packets))
     assert session["exchange_mode"] == "Main"
@@ -108,7 +112,9 @@ STRONG_V2 = [
 
 
 def test_ikev2_aead_suite(tmp_path):
-    session = only_session(pcaps.write(tmp_path / "v2.pcap", [pcaps.udp500(pcaps.ikev2_sa_init(STRONG_V2))]))
+    session = only_session(
+        pcaps.write(tmp_path / "v2.pcap", [pcaps.udp500(pcaps.ikev2_sa_init(STRONG_V2))])
+    )
     assert session["protocol"] == "IKEv2"
     assert session["exchange_mode"] == "IKE_SA_INIT"
     assert session["encryption"] == "AES-256-GCM"
@@ -121,17 +127,25 @@ def test_ikev2_aead_suite(tmp_path):
 
 def test_ikev2_use_transport_mode_notify(tmp_path):
     msg = pcaps.ikev2_sa_init(STRONG_V2, notify=16391)
-    assert only_session(pcaps.write(tmp_path / "n.pcap", [pcaps.udp500(msg)]))["ipsec_mode"] == "Transport"
+    assert (
+        only_session(pcaps.write(tmp_path / "n.pcap", [pcaps.udp500(msg)]))["ipsec_mode"]
+        == "Transport"
+    )
 
 
 def test_ikev2_identity_in_the_clear_is_exposed(tmp_path):
     msg = pcaps.ikev2_sa_init(STRONG_V2, idi=True)
-    assert only_session(pcaps.write(tmp_path / "i.pcap", [pcaps.udp500(msg)]))["identity_exposed"] is True
+    assert (
+        only_session(pcaps.write(tmp_path / "i.pcap", [pcaps.udp500(msg)]))["identity_exposed"]
+        is True
+    )
 
 
 def test_ecp_group_is_named_ecdh(tmp_path):
     transforms = [pcaps.v2_transform("Encryption", 20, 256), pcaps.v2_transform("GroupDesc", 19)]
-    session = only_session(pcaps.write(tmp_path / "e.pcap", [pcaps.udp500(pcaps.ikev2_sa_init(transforms))]))
+    session = only_session(
+        pcaps.write(tmp_path / "e.pcap", [pcaps.udp500(pcaps.ikev2_sa_init(transforms))])
+    )
     assert (session["dh_group"], session["key_exchange"]) == (19, "ECDH")
 
 
@@ -155,7 +169,10 @@ def test_packet_classification_counts(tmp_path):
         Ether() / IP(src="10.0.0.1", dst="10.0.0.2", proto=51) / AH(spi=5, seq=1),
         Ether() / IP(src="10.0.0.1", dst="8.8.8.8") / UDP(sport=5353, dport=53),
         # UDP/4500 without the non-ESP marker is UDP-encapsulated ESP, not IKE.
-        Ether() / IP(src="10.0.0.1", dst="10.0.0.2") / UDP(sport=4500, dport=4500) / (b"\x00\x00\x10\x01" + b"\x00\x00\x00\x03" + b"x" * 40),
+        Ether()
+        / IP(src="10.0.0.1", dst="10.0.0.2")
+        / UDP(sport=4500, dport=4500)
+        / (b"\x00\x00\x10\x01" + b"\x00\x00\x00\x03" + b"x" * 40),
     ]
     analysis = parser.parse_pcap(pcaps.write(tmp_path / "mix.pcap", packets))
     assert analysis["packet_summary"] == {
@@ -211,7 +228,9 @@ def test_traffic_features_arithmetic(tmp_path):
         pcaps.esp(2, size=100),
         pcaps.esp(2, size=200, src=pcaps.B, dst=pcaps.A, spi=0x2002),
     ]
-    features = only_session(pcaps.write(tmp_path / "f.pcap", packets, step=0.02))["traffic_features"]
+    features = only_session(pcaps.write(tmp_path / "f.pcap", packets, step=0.02))[
+        "traffic_features"
+    ]
     assert features["packet_count"] == 4
     assert features["avg_packet_size"] == 150.0
     assert (features["min_packet_size"], features["max_packet_size"]) == (100, 200)
@@ -245,7 +264,11 @@ def test_sample_fields(sample_path):
     mixed = analyze(sample_path("mixed"))
     strong = analyze(sample_path("strong"))["sessions"][0]
 
-    assert (weak["encryption"], weak["dh_group"], weak["replay_protection"]) == ("3DES-CBC", 2, False)
+    assert (weak["encryption"], weak["dh_group"], weak["replay_protection"]) == (
+        "3DES-CBC",
+        2,
+        False,
+    )
     assert mixed["ip_version"] == "IPv6"
     assert mixed["sessions"][0]["ipsec_mode"] == "Transport"
     assert mixed["sessions"][0]["lifetime_seconds"] == 120
@@ -257,5 +280,7 @@ def test_sample_fields(sample_path):
 
 
 def test_sample_finding_counts(sample_path):
-    counts = {name: len(analyze(sample_path(name))["findings"]) for name in ("weak", "mixed", "strong")}
+    counts = {
+        name: len(analyze(sample_path(name))["findings"]) for name in ("weak", "mixed", "strong")
+    }
     assert counts == {"weak": 10, "mixed": 7, "strong": 0}

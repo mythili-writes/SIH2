@@ -8,26 +8,64 @@ import json
 import sys
 from pathlib import Path
 
-TOP_LEVEL_KEYS = {"file_name", "total_packets", "ip_version", "packet_summary", "sessions", "findings"}
+TOP_LEVEL_KEYS = {
+    "file_name",
+    "total_packets",
+    "ip_version",
+    "packet_summary",
+    "sessions",
+    "findings",
+}
 # Additive keys: allowed but not required, so older files without them still pass.
 OPTIONAL_TOP_LEVEL_KEYS = {"parse_warnings"}
 PACKET_SUMMARY_KEYS = {"ike_packets", "esp_packets", "ah_packets", "other_packets"}
 SESSION_KEYS = {
-    "session_id", "src_ip", "dst_ip", "ipsec_protocol", "protocol", "exchange_mode", "ipsec_mode",
-    "encryption", "authentication", "hash", "dh_group", "key_exchange", "auth_method",
-    "lifetime_seconds", "pfs_enabled", "replay_protection", "nat_traversal", "identity_exposed",
-    "confidence", "traffic_features",
+    "session_id",
+    "src_ip",
+    "dst_ip",
+    "ipsec_protocol",
+    "protocol",
+    "exchange_mode",
+    "ipsec_mode",
+    "encryption",
+    "authentication",
+    "hash",
+    "dh_group",
+    "key_exchange",
+    "auth_method",
+    "lifetime_seconds",
+    "pfs_enabled",
+    "replay_protection",
+    "nat_traversal",
+    "identity_exposed",
+    "confidence",
+    "traffic_features",
 }
 TRAFFIC_FEATURE_KEYS = {
-    "packet_count", "avg_packet_size", "min_packet_size", "max_packet_size",
-    "avg_inter_arrival_ms", "duration_seconds", "bytes_total", "upstream_ratio",
+    "packet_count",
+    "avg_packet_size",
+    "min_packet_size",
+    "max_packet_size",
+    "avg_inter_arrival_ms",
+    "duration_seconds",
+    "bytes_total",
+    "upstream_ratio",
 }
 FINDING_KEYS = {"finding_id", "session_id", "category", "issue", "severity", "evidence"}
 
 SEVERITIES = {"Critical", "High", "Medium", "Low"}
 CATEGORIES = {
-    "Encryption", "Hash", "KeyExchange", "Authentication", "Mode", "Lifetime", "PFS",
-    "Protocol", "ReplayProtection", "MetadataExposure", "Compliance",
+    "Encryption",
+    "Hash",
+    "KeyExchange",
+    "Authentication",
+    "Mode",
+    "Lifetime",
+    "PFS",
+    "Protocol",
+    "ReplayProtection",
+    "MetadataExposure",
+    "Compliance",
 }
 # "Unknown" follows the Contract A convention for values that cannot be determined:
 # an IKE-only session has no data plane to name, and a capture with no IP packets
@@ -79,7 +117,12 @@ def check_contract_a(data):
         session_ids.add(session.get("session_id"))
         check_enum(session, "ipsec_protocol", IPSEC_PROTOCOLS, where, errors)
         if "traffic_features" in session:
-            check_keys(session["traffic_features"], TRAFFIC_FEATURE_KEYS, f"{where}.traffic_features", errors)
+            check_keys(
+                session["traffic_features"],
+                TRAFFIC_FEATURE_KEYS,
+                f"{where}.traffic_features",
+                errors,
+            )
 
     for i, finding in enumerate(data.get("findings", [])):
         where = f"findings[{i}]"
@@ -88,14 +131,18 @@ def check_contract_a(data):
         check_enum(finding, "severity", SEVERITIES, where, errors)
         check_enum(finding, "category", CATEGORIES, where, errors)
         if "session_id" in finding and finding["session_id"] not in session_ids:
-            errors.append(f"{where}: session_id={finding['session_id']!r} does not match any session")
+            errors.append(
+                f"{where}: session_id={finding['session_id']!r} does not match any session"
+            )
 
     return errors
 
 
 def main():
     """CLI: check one file (default test_analysis.json) and exit 1 on any violation."""
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).with_name("test_analysis.json")
+    path = (
+        Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).with_name("test_analysis.json")
+    )
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
 

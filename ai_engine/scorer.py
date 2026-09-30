@@ -99,9 +99,7 @@ def ai_confidence(sessions, traffic_confidences=None):
 
 def _finite_number(value):
     """True for an int or float that is finite; False for bools, strings, None, NaN, inf."""
-    return (
-        isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
-    )
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def build_threat_matrix(findings):
@@ -114,13 +112,15 @@ def build_threat_matrix(findings):
     for category, group in groups.items():
         worst = min((f.get("severity") for f in group), key=lambda s: SEVERITY_RANK.get(s, 3))
         threat, impact = THREATS.get(category, UNKNOWN_THREAT)
-        matrix.append({
-            "threat": threat,
-            "category": category,
-            "likelihood": SEVERITY_TO_LIKELIHOOD.get(worst, "Low"),
-            "impact": impact,
-            "related_findings": [f.get("finding_id") for f in group],
-        })
+        matrix.append(
+            {
+                "threat": threat,
+                "category": category,
+                "likelihood": SEVERITY_TO_LIKELIHOOD.get(worst, "Low"),
+                "impact": impact,
+                "related_findings": [f.get("finding_id") for f in group],
+            }
+        )
 
     matrix.sort(key=lambda row: (LEVEL_ORDER[row["likelihood"]], LEVEL_ORDER[row["impact"]]))
     return matrix
@@ -147,12 +147,16 @@ def main():
 
     print("\nFindings:")
     for finding in score_findings(findings):
-        print(f"  {finding.get('finding_id')}  {str(finding.get('severity')):<8}  risk_score={finding['risk_score']}")
+        print(
+            f"  {finding.get('finding_id')}  {str(finding.get('severity')):<8}  risk_score={finding['risk_score']}"
+        )
 
     print("\nThreat matrix:")
     for row in build_threat_matrix(findings):
-        print(f"  [{row['likelihood']:<6} likelihood / {row['impact']:<6} impact]  "
-              f"{row['category']}: {row['threat']}  -> {', '.join(map(str, row['related_findings']))}")
+        print(
+            f"  [{row['likelihood']:<6} likelihood / {row['impact']:<6} impact]  "
+            f"{row['category']}: {row['threat']}  -> {', '.join(map(str, row['related_findings']))}"
+        )
 
 
 if __name__ == "__main__":

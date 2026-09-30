@@ -1,3 +1,34 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+# pycodestyle errors/warnings, pyflakes, import order, bugbear, and the
+# missing-docstring rules (D1) that keep every public function documented.
+select = ["E", "W", "F", "I", "B", "D1"]
+ignore = [
+    "E501",  # line length is black's job; ruff would only flag long strings black leaves alone
+    "D105",  # magic methods
+    "D107",  # __init__
+    "B905",  # zip(strict=...) would touch every zip() call for no behaviour change
+]
+
+[tool.ruff.lint.per-file-ignores]
+# These modules put the repo root on sys.path before importing config, so that
+# they also work when run as scripts; the late imports are deliberate.
+"ai_engine/*.py" = ["E402"]
+"backend/main.py" = ["E402"]
+"frontend/*.py" = ["E402"]
+"tests/*" = ["D1"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ai_engine", "backend", "frontend", "config", "logging_setup", "pcaps"]

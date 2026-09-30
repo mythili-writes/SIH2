@@ -92,7 +92,11 @@ def test_explainer_is_offline_by_default_in_tests(canonical):
         ("3DES is deprecated", "encryption=3DES", "Replace 3DES"),
         ("DES is weak", "encryption=DES", "Replace DES"),  # "des" must not match "3des"
         ("DH group 2 (1024-bit) is too weak", "dh_group=2", "DH group 14"),
-        ("IKEv1 Aggressive Mode exposes the PSK hash", "", "Main Mode"),  # aggressive before ikev1/psk
+        (
+            "IKEv1 Aggressive Mode exposes the PSK hash",
+            "",
+            "Main Mode",
+        ),  # aggressive before ikev1/psk
         # Regression: Compliance evidence quotes the weak cipher; the issue must win.
         (
             "Negotiated cipher suite is not compliant with the approved baseline",
@@ -195,7 +199,11 @@ def test_model_failure_falls_back_to_rules(monkeypatch):
     monkeypatch.setattr(traffic_model, "_model_rankings", broken)
     session = {
         "session_id": 1,
-        "traffic_features": {"packet_count": 50, "avg_packet_size": 150, "avg_inter_arrival_ms": 20},
+        "traffic_features": {
+            "packet_count": 50,
+            "avg_packet_size": 150,
+            "avg_inter_arrival_ms": 20,
+        },
     }
     result = traffic_model.predict_sessions([session])[0]
     assert (result["predicted_traffic_type"], result["traffic_confidence"]) == ("VoIP", 0.5)

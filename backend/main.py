@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Backend CLI: PCAP -> Contract A analysis JSON.
 
-    python backend/main.py input.pcap output.json
+python backend/main.py input.pcap output.json
 """
 
 import argparse
@@ -59,8 +59,10 @@ def main(argv=None):
         return 2
     except Exception as exc:
         log.error("capture parse failed file=%s", os.path.basename(args.pcap), exc_info=True)
-        print("error: failed to parse %s: %s: %s" % (args.pcap, type(exc).__name__, exc),
-              file=sys.stderr)
+        print(
+            "error: failed to parse %s: %s: %s" % (args.pcap, type(exc).__name__, exc),
+            file=sys.stderr,
+        )
         return 1
 
     try:

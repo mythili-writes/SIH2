@@ -107,15 +107,22 @@ def _who(session_ids):
 
 
 def _traffic_types(traffic_analysis):
-    return _unique(t.get("predicted_traffic_type") for t in traffic_analysis
-                   if _known(t.get("predicted_traffic_type")))
+    return _unique(
+        t.get("predicted_traffic_type")
+        for t in traffic_analysis
+        if _known(t.get("predicted_traffic_type"))
+    )
 
 
 def build_executive_report(findings, risk_score, risk_level, traffic_analysis):
     """Return {"headline", "key_points", "business_impact", "top_actions"} in plain English."""
     types = _traffic_types(traffic_analysis)
-    traffic_sentence = (f" Even though the traffic is encrypted, an observer can still tell that it carries "
-                        f"{_join(types)} traffic from packet sizes and timing." if types else "")
+    traffic_sentence = (
+        f" Even though the traffic is encrypted, an observer can still tell that it carries "
+        f"{_join(types)} traffic from packet sizes and timing."
+        if types
+        else ""
+    )
 
     if not findings:
         return {
@@ -140,7 +147,9 @@ def build_executive_report(findings, risk_score, risk_level, traffic_analysis):
             issue = str(group[0].get("issue") or "A security weakness was found").rstrip(".")
             key_points.append(f"{issue} ({who}).")
 
-    impacts = _unique(IMPACTS[f.get("category")] for f in worst if f.get("category") in IMPACTS)[:MAX_IMPACTS]
+    impacts = _unique(IMPACTS[f.get("category")] for f in worst if f.get("category") in IMPACTS)[
+        :MAX_IMPACTS
+    ]
     if impacts:
         business_impact = f"If these weaknesses are not fixed, {_join(impacts)}." + traffic_sentence
     else:
@@ -168,8 +177,16 @@ def build_technical_report(sessions, findings, ip_version):
     """Return the five technical strings, one "Session N: ..." part per session joined with " | "."""
     sessions = [s for s in sessions if isinstance(s, dict)]
     if not sessions:
-        return {key: NO_SESSIONS_TEXT for key in (
-            "protocol_identification", "cipher_suite_analysis", "sa_analysis", "metadata_exposure", "compliance_notes")}
+        return {
+            key: NO_SESSIONS_TEXT
+            for key in (
+                "protocol_identification",
+                "cipher_suite_analysis",
+                "sa_analysis",
+                "metadata_exposure",
+                "compliance_notes",
+            )
+        }
 
     protocol, cipher, sa, exposed, compliance = [], [], [], [], []
     for s in sessions:
@@ -177,30 +194,43 @@ def build_technical_report(sessions, findings, ip_version):
         protocol.append(
             f"Session {sid}: {_text(s.get('protocol'), 'unknown IKE version')} {_mode(s.get('exchange_mode'))}, "
             f"{_text(s.get('ipsec_protocol'), 'unknown IPsec protocol')} {_mode(s.get('ipsec_mode'))} "
-            f"over {_text(ip_version, 'unknown IP version')}")
+            f"over {_text(ip_version, 'unknown IP version')}"
+        )
         cipher.append(
             f"Session {sid}: {_text(s.get('encryption'), 'unknown cipher')} + "
             f"{_text(s.get('authentication'), 'unknown integrity algorithm')}, "
-            f"hash {_text(s.get('hash'))}, DH group {_text(s.get('dh_group'))}")
+            f"hash {_text(s.get('hash'))}, DH group {_text(s.get('dh_group'))}"
+        )
         lifetime = _known(s.get("lifetime_seconds"))
         sa.append(
             f"Session {sid}: lifetime {'unknown' if lifetime is None else f'{lifetime} s'}, "
             f"replay protection {_on_off(s.get('replay_protection'))}, PFS {_on_off(s.get('pfs_enabled'))}, "
-            f"NAT-T {_on_off(s.get('nat_traversal'))}")
+            f"NAT-T {_on_off(s.get('nat_traversal'))}"
+        )
         if s.get("identity_exposed") is True:
-            exposed.append(f"Session {sid}: peer identity is sent in clear and visible to eavesdroppers")
+            exposed.append(
+                f"Session {sid}: peer identity is sent in clear and visible to eavesdroppers"
+            )
 
-        failing = _unique(f.get("category") for f in findings
-                          if f.get("session_id") == s.get("session_id")
-                          and f.get("severity") in SEVERE and f.get("category") in COMPLIANCE_CATEGORIES)
+        failing = _unique(
+            f.get("category")
+            for f in findings
+            if f.get("session_id") == s.get("session_id")
+            and f.get("severity") in SEVERE
+            and f.get("category") in COMPLIANCE_CATEGORIES
+        )
         if failing:
-            compliance.append(f"Session {sid}: fails NIST SP 800-131A and SP 800-77r1 guidance ({', '.join(failing)})")
+            compliance.append(
+                f"Session {sid}: fails NIST SP 800-131A and SP 800-77r1 guidance ({', '.join(failing)})"
+            )
         else:
             compliance.append(f"Session {sid}: meets the checked NIST guidance")
 
     if not exposed:
         exposed.append("No session sends its peer identity in clear")
-    exposed.append("Traffic type can still be inferred from packet sizes and timing even though ESP is encrypted")
+    exposed.append(
+        "Traffic type can still be inferred from packet sizes and timing even though ESP is encrypted"
+    )
 
     return {
         "protocol_identification": " | ".join(protocol),

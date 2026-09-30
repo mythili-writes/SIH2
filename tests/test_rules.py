@@ -126,7 +126,14 @@ def test_finding_shape_and_ids():
 
     assert [f["finding_id"] for f in found] == ["F%03d" % i for i in range(1, len(found) + 1)]
     for finding in found:
-        assert set(finding) == {"finding_id", "session_id", "category", "issue", "severity", "evidence"}
+        assert set(finding) == {
+            "finding_id",
+            "session_id",
+            "category",
+            "issue",
+            "severity",
+            "evidence",
+        }
         assert finding["severity"] in rules.SEVERITIES
         assert finding["category"] in rules.CATEGORIES
         assert finding["issue"] and finding["evidence"]
