@@ -6,8 +6,14 @@ Frontend: from ai_engine.main import run
 
 import copy
 import json
+import logging
 import os
 import sys
+import time
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:  # config.py and logging_setup.py live at the repo root
+    sys.path.insert(0, _REPO_ROOT)
 
 if __package__:
     from . import explainer, report_builder, scorer, traffic_model
@@ -17,6 +23,8 @@ else:  # run as a script: python ai_engine/main.py
     import scorer
     import traffic_model
 
+log = logging.getLogger("ai_engine.main")
+
 SEVERITIES = ("Critical", "High", "Medium", "Low")
 FINDING_KEYS = ("finding_id", "session_id", "category", "issue", "severity", "risk_score",
                 "explanation", "recommendation", "reference")
@@ -25,11 +33,16 @@ TECHNICAL_KEYS = ("protocol_identification", "cipher_suite_analysis", "sa_analys
 
 
 def _safe(part, func, default):
-    """Run one pipeline part; on any error print a warning and return default."""
+    """Run one pipeline part; on any error log a warning and return default."""
     try:
         return func()
     except Exception as exc:
-        print(f"Warning: {part} failed ({type(exc).__name__}: {exc}); using a safe default.", file=sys.stderr)
+        log.warning(
+            "pipeline step failed step=%s error=%s; using a safe default",
+            part,
+            type(exc).__name__,
+            exc_info=True,
+        )
         return default
 
 
@@ -46,10 +59,11 @@ def _contract_finding(finding):
 
 
 def _build(analysis):
+    started = time.perf_counter()
     sessions = copy.deepcopy(_as_list(analysis.get("sessions")))
     raw_findings = [f for f in _as_list(analysis.get("findings")) if isinstance(f, dict)]
 
-    findings, _mode = _safe(
+    findings, explain_mode = _safe(
         "explainer", lambda: explainer.explain_findings(raw_findings),
         ([dict(f, explanation="", recommendation="", reference="") for f in raw_findings], "none"))
     findings = _safe("risk scoring", lambda: scorer.score_findings(findings),
@@ -77,6 +91,16 @@ def _build(analysis):
     summary = _safe("summary", lambda: report_builder.build_summary(risk_level, findings, traffic_analysis),
                     f"Overall risk is {risk_level.lower()}.")
 
+    log.info(
+            "report built file=%s risk=%s level=%s findings=%d sessions=%d explanations=%s seconds=%.2f",
+            os.path.basename(str(analysis.get("file_name") or "Unknown")),
+            risk_score,
+            risk_level,
+            len(findings),
+            len(sessions),
+            explain_mode,
+            time.perf_counter() - started,
+    )
     return {
         "file_name": str(analysis.get("file_name") or "Unknown"),
         "overall_risk_score": risk_score,
@@ -117,6 +141,10 @@ def _fail(message):
 
 
 def main():
+    """CLI: python ai_engine/main.py <analysis.json> <report.json> [--offline]."""
+    from logging_setup import configure_logging
+
+    configure_logging()
     args = [a for a in sys.argv[1:] if a != "--offline"]
     offline = len(args) != len(sys.argv) - 1
     if len(args) != 2:

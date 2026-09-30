@@ -19,6 +19,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import config  # noqa: E402
+from logging_setup import configure_logging  # noqa: E402
 from frontend.pipeline import (  # noqa: E402
     SCOPE_NOTE,
     build_executive_pdf,
@@ -807,6 +808,7 @@ The pipeline runs in three stages:
 
 def main():
     """Streamlit entry point."""
+    configure_logging()
     st.set_page_config(
         page_title="IPsec VPN Security Analyser",
         page_icon="shield",

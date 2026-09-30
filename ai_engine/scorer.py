@@ -110,6 +110,10 @@ def build_threat_matrix(findings):
 
 
 def main():
+    """CLI: print the risk score, confidence and threat matrix for a Contract A file."""
+    from logging_setup import configure_logging
+
+    configure_logging()
     if len(sys.argv) != 2:
         print("Usage: python ai_engine/scorer.py <analysis.json>")
         sys.exit(2)

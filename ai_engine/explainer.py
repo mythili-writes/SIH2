@@ -7,9 +7,11 @@ Usage: python ai_engine/explainer.py <analysis.json>
 """
 
 import json
+import logging
 import os
 import re
 import sys
+import time
 
 import requests
 
@@ -18,6 +20,8 @@ if _REPO_ROOT not in sys.path:  # also works when this file is run as a script
     sys.path.insert(0, _REPO_ROOT)
 
 import config  # noqa: E402  (repo-root config.py: the single source of settings)
+
+log = logging.getLogger("ai_engine.explainer")
 
 API_URL = "https://api.anthropic.com/v1/messages"
 
@@ -263,12 +267,28 @@ def explain_findings(findings):
     """
     llm_results = {}
     if findings and _llm_enabled():
+        started = time.perf_counter()
+        log.info("LLM explanation request model=%s findings=%d", _model_name(), len(findings))
         try:
             llm_results = _ask_llm(findings)
         except Exception as exc:
-            print(f"Warning: LLM explanations unavailable ({_error_reason(exc)}); "
-                  f"using rule-based explanations.", file=sys.stderr)
+            # Only the status code or exception type: never the key or the reply body.
+            log.warning(
+                "LLM explanations unavailable reason=%s seconds=%.2f; using rule-based explanations",
+                _error_reason(exc),
+                time.perf_counter() - started,
+            )
             llm_results = {}
+        else:
+            log.info(
+                "LLM explanations received usable=%d/%d seconds=%.2f",
+                len(llm_results),
+                len(findings),
+                time.perf_counter() - started,
+            )
+    elif findings:
+        reason = "offline" if os.environ.get("AI_OFFLINE") == "1" else "no_api_key"
+        log.info("explanations are rule-based reason=%s findings=%d", reason, len(findings))
 
     new_findings = []
     missed = []
@@ -283,12 +303,18 @@ def explain_findings(findings):
 
     used_llm = len(missed) < len(findings)
     if used_llm and missed:
-        print(f"Warning: LLM gave no usable text for {', '.join(missed)}; "
-              f"used rule-based text for those.", file=sys.stderr)
+        log.warning(
+            "LLM gave no usable text for findings=%s; used rule-based text for those",
+            ",".join(missed),
+        )
     return new_findings, "llm" if used_llm else "rule"
 
 
 def main():
+    """CLI: print the explanation for every finding in a Contract A file."""
+    from logging_setup import configure_logging
+
+    configure_logging()
     if len(sys.argv) != 2:
         print("Usage: python ai_engine/explainer.py <analysis.json>")
         sys.exit(2)

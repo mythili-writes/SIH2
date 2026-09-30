@@ -10,3 +10,6 @@ ai_engine_SUBSTITUTE_backup/
 
 # local secrets; see .env.example
 .env
+
+# runtime logs (logging_setup.py)
+logs/

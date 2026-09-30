@@ -7,6 +7,7 @@ Kept free of Streamlit imports so the whole pipeline can be exercised headlessly
 """
 
 import json
+import logging
 import os
 import re
 import sys
@@ -22,6 +23,8 @@ from ai_engine import scorer  # noqa: E402
 from ai_engine.main import run as run_ai_engine  # noqa: E402
 from backend.main import analyze as run_backend  # noqa: E402
 
+log = logging.getLogger("frontend.pipeline")
+
 SAMPLE_DIR = os.path.join(_ROOT, "sample_data")
 
 SEVERITY_ORDER = ("Critical", "High", "Medium", "Low")
@@ -35,6 +38,7 @@ SCOPE_NOTE = (
 
 def run_pipeline(pcap_path, offline=True):
     """pcap path -> (Contract A analysis, Contract B report)."""
+    log.info("analysis requested file=%s offline=%s", os.path.basename(pcap_path), offline)
     analysis = run_backend(pcap_path)
     report = run_ai_engine(analysis, offline=offline)
     return analysis, report

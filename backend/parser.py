@@ -12,8 +12,10 @@ ESP payloads are encrypted and are never inspected — traffic_features are
 derived purely from packet size, timing and direction.
 """
 
+import logging
 import os
 import struct
+import time
 
 from scapy.all import rdpcap
 from scapy.layers.inet import IP, UDP
@@ -34,6 +36,8 @@ try:
 except Exception:  # pragma: no cover - contrib module should always be present
     ikev2 = None
     HAVE_IKEV2 = False
+
+log = logging.getLogger("backend.parser")
 
 UNKNOWN = "Unknown"
 
@@ -738,6 +742,7 @@ def parse_pcap(path):
 
     `backend.main` adds findings by running the rule engine over `sessions`.
     """
+    started = time.perf_counter()
     packets = rdpcap(path)
 
     counts = {"ike_packets": 0, "esp_packets": 0, "ah_packets": 0, "other_packets": 0}
@@ -859,6 +864,10 @@ def parse_pcap(path):
         session["confidence"] = _confidence(session, state)
         sessions.append(session)
 
+    ike_errors = sum(state["parse_errors"] for state in states.values())
+    if ike_errors:
+        log.warning("IKE messages could not be dissected count=%d", ike_errors)
+
     if versions == {6}:
         ip_version = "IPv6"
     elif versions == {4}:
@@ -868,6 +877,19 @@ def parse_pcap(path):
     else:
         ip_version = UNKNOWN
 
+    log.info(
+        "capture parsed file=%s packets=%d ike=%d esp=%d ah=%d other=%d sessions=%d "
+        "ip_version=%s seconds=%.2f",
+        os.path.basename(path),
+        len(packets),
+        counts["ike_packets"],
+        counts["esp_packets"],
+        counts["ah_packets"],
+        counts["other_packets"],
+        len(sessions),
+        ip_version,
+        time.perf_counter() - started,
+    )
     return {
         "file_name": os.path.basename(path),
         "total_packets": len(packets),

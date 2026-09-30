@@ -9,9 +9,11 @@ Usage:
 
 import csv
 import json
+import logging
 import math
 import os
 import sys
+import time
 import warnings
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +25,8 @@ import config  # noqa: E402  (repo-root config.py: the single source of settings
 FEATURES = ["packet_count", "avg_packet_size", "min_packet_size", "max_packet_size",
             "avg_inter_arrival_ms", "duration_seconds", "bytes_total", "upstream_ratio"]
 CLASSES = ["VoIP", "WhatsApp", "Email", "Web Browsing", "ICMP", "Video Streaming", "File Transfer"]
+
+log = logging.getLogger("ai_engine.traffic_model")
 
 # Artifact paths and the "Unknown" confidence threshold come from config.py.
 RULE_CONFIDENCE = 0.5
@@ -149,7 +153,11 @@ def _read_extra_csv(path):
             row["traffic_type"] = label
             rows.append(row)
     if skipped:
-        print(f"Warning: skipped {skipped} row(s) in {path} with missing values or an unknown traffic_type.")
+        log.warning(
+            "skipped rows=%d file=%s reason=missing values or unknown traffic_type",
+            skipped,
+            os.path.basename(path),
+        )
     return rows
 
 
@@ -221,6 +229,12 @@ def train(extra_csv=None):
         json.dump(training_report, f, indent=2)
 
     print(f"\nSaved {config.TRAFFIC_MODEL_PATH}")
+    log.info(
+        "traffic model trained accuracy=%.4f samples=%d sklearn=%s",
+        accuracy,
+        len(rows),
+        sklearn.__version__,
+    )
     return model
 
 
@@ -229,6 +243,7 @@ def load_model():
 
     Returns None only if retraining also fails. Never raises.
     """
+    started = time.perf_counter()
     try:
         import joblib
         from sklearn.exceptions import InconsistentVersionWarning
@@ -236,16 +251,24 @@ def load_model():
         with warnings.catch_warnings():
             # A model saved by another scikit-learn version can load but predict wrongly; retrain instead.
             warnings.simplefilter("error", InconsistentVersionWarning)
-            return joblib.load(config.TRAFFIC_MODEL_PATH)
+            model = joblib.load(config.TRAFFIC_MODEL_PATH)
+        log.info(
+            "traffic model loaded file=%s seconds=%.2f",
+            os.path.basename(config.TRAFFIC_MODEL_PATH),
+            time.perf_counter() - started,
+        )
+        return model
     except FileNotFoundError:
-        print("Warning: traffic model not found; training a new one.", file=sys.stderr)
+        log.warning("traffic model not found; retraining file=%s", config.TRAFFIC_MODEL_PATH)
     except Exception as exc:
-        print(f"Warning: could not load traffic model ({type(exc).__name__}); training a new one.", file=sys.stderr)
+        log.warning(
+            "traffic model could not be loaded reason=%s; retraining", type(exc).__name__
+        )
 
     try:
         return train()
     except Exception as exc:
-        print(f"Warning: training the traffic model failed ({type(exc).__name__}).", file=sys.stderr)
+        log.error("traffic model retraining failed reason=%s", type(exc).__name__, exc_info=True)
         return None
 
 
@@ -321,7 +344,10 @@ def predict_sessions(sessions):
         try:
             rankings = dict(zip(rows, _model_rankings(list(rows.values()))))
         except Exception as exc:
-            print(f"Warning: traffic model unavailable ({type(exc).__name__}); using simple rules.", file=sys.stderr)
+            log.warning(
+                "traffic model unavailable reason=%s; using simple size/timing rules",
+                type(exc).__name__,
+            )
 
     results = []
     for index, session in enumerate(sessions):
@@ -345,6 +371,10 @@ def predict_sessions(sessions):
 
 
 def main():
+    """CLI: train the model, or predict traffic types for a Contract A file."""
+    from logging_setup import configure_logging
+
+    configure_logging()
     args = sys.argv[1:]
     if len(args) in (1, 2) and args[0] == "train":
         train(args[1] if len(args) == 2 else None)
