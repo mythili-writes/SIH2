@@ -51,6 +51,12 @@ FINDING_KEYS = {
     "reference",
 }
 
+# Additive keys (docs/CONTRACTS.md): allowed but not required, so reports
+# written before they existed still pass.
+OPTIONAL_TOP_LEVEL_KEYS = {"remediation_config"}
+OPTIONAL_FINDING_KEYS = {"remediation_snippet"}
+REMEDIATION_KEYS = {"session_id", "snippet"}
+
 LEVELS = {"Critical", "High", "Medium", "Low"}
 LIKELIHOODS = {"Low", "Medium", "High"}
 TRAFFIC_TYPES = {
@@ -85,14 +91,18 @@ def is_str_list(value):
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
-def check_keys(obj, expected, where, errors):
-    """Record missing and unexpected keys. Returns False if obj is not a dict."""
+def check_keys(obj, expected, where, errors, optional=frozenset()):
+    """Record missing and unexpected keys. Returns False if obj is not a dict.
+
+    Keys in `optional` may be present or absent; any other key outside
+    `expected` is reported as unexpected.
+    """
     if not isinstance(obj, dict):
         errors.append(f"{where}: expected an object, got {type(obj).__name__}")
         return False
     for key in sorted(expected - obj.keys()):
         errors.append(f"{where}: missing key '{key}'")
-    for key in sorted(obj.keys() - expected):
+    for key in sorted(obj.keys() - expected - optional):
         errors.append(f"{where}: unexpected key '{key}'")
     return True
 
@@ -127,7 +137,7 @@ def check_list(data, key, errors):
 def check_contract_b(data):
     """Return a list of Contract B violations in `data`; empty means valid."""
     errors = []
-    if not check_keys(data, TOP_LEVEL_KEYS, "top level", errors):
+    if not check_keys(data, TOP_LEVEL_KEYS, "top level", errors, OPTIONAL_TOP_LEVEL_KEYS):
         return errors
     check_type(data, ["file_name", "summary"], is_str, "a string", "top level", errors)
     check_type(data, ["overall_risk_score"], is_int, "an int", "top level", errors)
@@ -195,8 +205,9 @@ def check_contract_b(data):
     finding_ids = set()
     for i, finding in enumerate(check_list(data, "findings", errors)):
         where = f"findings[{i}]"
-        if not check_keys(finding, FINDING_KEYS, where, errors):
+        if not check_keys(finding, FINDING_KEYS, where, errors, OPTIONAL_FINDING_KEYS):
             continue
+        check_type(finding, ["remediation_snippet"], is_str, "a string", where, errors)
         finding_ids.add(finding.get("finding_id"))
         check_type(
             finding,
@@ -228,6 +239,16 @@ def check_contract_b(data):
         for finding_id in related:
             if finding_id not in finding_ids:
                 errors.append(f"{where}: related finding {finding_id!r} does not match any finding")
+
+    for i, item in enumerate(check_list(data, "remediation_config", errors)):
+        where = f"remediation_config[{i}]"
+        if not check_keys(item, REMEDIATION_KEYS, where, errors):
+            continue
+        check_type(item, ["snippet"], is_str, "a string", where, errors)
+        if item.get("session_id") not in session_ids:
+            errors.append(
+                f"{where}: session_id={item.get('session_id')!r} does not match any session"
+            )
 
     return errors
 

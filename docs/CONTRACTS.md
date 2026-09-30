@@ -100,6 +100,7 @@ step.
 | `threat_matrix` | list | See below |
 | `findings` | list | Contract A findings without `evidence`, plus the fields below |
 | `sessions` | list | The Contract A sessions, passed through unchanged |
+| `remediation_config` | list | *Optional, additive.* One `{session_id, snippet}` per session with at least one fix: a single strongSwan `conn` block merging the fixes for all of that session's findings |
 
 ### Finding (additional fields)
 
@@ -107,6 +108,7 @@ step.
 |---|---|---|
 | `risk_score` | int | Critical 95, High 75, Medium 50, Low 25 |
 | `explanation`, `recommendation`, `reference` | string | Rule-based offline; from Claude when a key is set and the call succeeds |
+| `remediation_snippet` | string | *Optional, additive.* strongSwan `ipsec.conf` lines that fix this finding, with `# was` comments recording the observed values; `""` when no setting applies. Always rule-generated, never from the LLM |
 
 ### Traffic analysis entry
 

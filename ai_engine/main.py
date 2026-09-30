@@ -16,9 +16,10 @@ if _REPO_ROOT not in sys.path:  # config.py and logging_setup.py live at the rep
     sys.path.insert(0, _REPO_ROOT)
 
 if __package__:
-    from . import explainer, report_builder, scorer, traffic_model
+    from . import explainer, remediation, report_builder, scorer, traffic_model
 else:  # run as a script: python ai_engine/main.py
     import explainer
+    import remediation
     import report_builder
     import scorer
     import traffic_model
@@ -36,6 +37,8 @@ FINDING_KEYS = (
     "explanation",
     "recommendation",
     "reference",
+    # Additive (see docs/CONTRACTS.md): a strongSwan ipsec.conf fix, "" if none applies.
+    "remediation_snippet",
 )
 TECHNICAL_KEYS = (
     "protocol_identification",
@@ -123,6 +126,11 @@ def _build(analysis):
         lambda: scorer.score_findings(findings),
         [dict(f, risk_score=0) for f in findings],
     )
+    findings, remediation_config = _safe(
+        "remediation",
+        lambda: remediation.attach(findings, sessions),
+        ([dict(f, remediation_snippet="") for f in findings], []),
+    )
     findings = [_contract_finding(f) for f in findings]
 
     risk_score, risk_level = _safe(
@@ -186,6 +194,7 @@ def _build(analysis):
         "threat_matrix": threat_matrix,
         "findings": findings,
         "sessions": sessions,
+        "remediation_config": remediation_config,
     }
 
 

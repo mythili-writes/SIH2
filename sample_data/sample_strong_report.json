@@ -77,5 +77,6 @@
         "upstream_ratio": 0.9865
       }
     }
-  ]
+  ],
+  "remediation_config": []
 }

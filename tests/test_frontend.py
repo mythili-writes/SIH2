@@ -34,13 +34,25 @@ def test_landing_page_renders():
     assert at.title[0].value == "IPsec VPN Security Analyser"
 
 
+def expected_downloads(at):
+    """Executive JSON + PDF, technical x3, plus one .conf per session needing a fix."""
+    return 5 + len(at.session_state["report"]["remediation_config"])
+
+
 @pytest.mark.parametrize("label", ["Weak", "Mixed", "Strong", "Test capture"])
 def test_every_sample_renders_every_tab(label):
     at = analyse_sample(label)
     assert not at.exception
     assert not at.error
-    assert len(at.tabs) == 7
-    assert len(at.get("download_button")) == 5  # executive JSON + PDF, technical x3
+    assert len(at.tabs) == 8
+    assert len(at.get("download_button")) == expected_downloads(at)
+
+
+def test_remediation_is_shown_as_copyable_config():
+    at = analyse_sample("Weak")
+    snippets = [block.value for block in at.code if "conn session-S1" in block.value]
+    assert snippets, "no strongSwan config block rendered"
+    assert any("Download ipsec-S1.conf" == b.label for b in at.get("download_button"))
 
 
 def test_bad_capture_shows_a_readable_error(monkeypatch):
@@ -77,4 +89,4 @@ def test_a_broken_tab_does_not_take_down_the_others(monkeypatch):
     at = analyse_sample("Weak")
     assert not at.exception
     assert len(at.error) == 1 and "Traffic Analysis" in at.error[0].value
-    assert len(at.get("download_button")) == 5  # Executive and Technical still rendered
+    assert len(at.get("download_button")) == expected_downloads(at)  # later tabs still rendered

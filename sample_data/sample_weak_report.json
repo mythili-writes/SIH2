@@ -153,7 +153,8 @@
       "risk_score": 75,
       "explanation": "3DES uses a small 64-bit block, so an attacker who records enough traffic can recover data (the Sweet32 attack).",
       "recommendation": "Replace 3DES with AES-256-GCM.",
-      "reference": "NIST SP 800-131A"
+      "reference": "NIST SP 800-131A",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F001 (Encryption)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=3des-md5-modp1024\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
     },
     {
       "finding_id": "F002",
@@ -164,7 +165,8 @@
       "risk_score": 75,
       "explanation": "MD5 is a broken hash; attackers can create collisions and forge data.",
       "recommendation": "Use SHA-256 or stronger (for example HMAC-SHA-256).",
-      "reference": "RFC 8221"
+      "reference": "RFC 8221",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F002 (Hash)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=3des-md5-modp1024\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
     },
     {
       "finding_id": "F003",
@@ -175,7 +177,8 @@
       "risk_score": 75,
       "explanation": "DH groups 1 and 2 use 768-bit and 1024-bit keys, which are too short and open to the Logjam attack.",
       "recommendation": "Use DH group 14, 19 or 20.",
-      "reference": "RFC 8247"
+      "reference": "RFC 8247",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F003 (KeyExchange)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=3des-md5-modp1024\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
     },
     {
       "finding_id": "F004",
@@ -186,7 +189,8 @@
       "risk_score": 75,
       "explanation": "Aggressive Mode sends the peer identity and a hash of the pre-shared key without protection. An attacker can capture it and crack the key offline.",
       "recommendation": "Use IKEv2, or Main Mode if IKEv1 cannot be removed yet.",
-      "reference": "NIST SP 800-77r1"
+      "reference": "NIST SP 800-77r1",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F004 (Protocol)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # IKEv1 is deprecated (RFC 9395)\n    keyexchange=ikev2\n    # was (observed): aggressive=yes\n    # keeps IKEv1 peers in main mode during the migration\n    aggressive=no\n"
     },
     {
       "finding_id": "F005",
@@ -197,7 +201,8 @@
       "risk_score": 50,
       "explanation": "A pre-shared key can be guessed if it is weak, and the same key is often shared across many devices.",
       "recommendation": "Use certificate-based authentication.",
-      "reference": "NIST SP 800-77r1"
+      "reference": "NIST SP 800-77r1",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F005 (Authentication)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): pre-shared key (authby=secret)\n    leftauth=pubkey\n    rightauth=pubkey\n    # this gateway's certificate in /etc/ipsec.d/certs/\n    leftcert=gatewayCert.pem\n    # set to the subject of the peer's certificate\n    # then remove this peer's PSK line from /etc/ipsec.secrets\n    rightid=\"CN=peer.example.org\"\n"
     },
     {
       "finding_id": "F006",
@@ -208,7 +213,8 @@
       "risk_score": 50,
       "explanation": "Without Perfect Forward Secrecy, anyone who later steals a key can decrypt old recorded traffic.",
       "recommendation": "Enable PFS with DH group 19 or 20.",
-      "reference": "NIST SP 800-77r1"
+      "reference": "NIST SP 800-77r1",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F006 (PFS)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): no DH group in the ESP proposal, so no PFS\n    # adding a DH group to the ESP proposal enables PFS on every rekey\n    esp=aes256gcm16-ecp256!\n"
     },
     {
       "finding_id": "F007",
@@ -219,7 +225,8 @@
       "risk_score": 25,
       "explanation": "The key lifetime is outside the normal range, so a key is used for too long or is changed too often.",
       "recommendation": "Use 28800 seconds for the IKE SA and 3600 seconds for the IPsec SA.",
-      "reference": "NIST SP 800-77r1"
+      "reference": "NIST SP 800-77r1",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F007 (Lifetime)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): ikelifetime=172800s\n    # 28800 s for the IKE SA\n    ikelifetime=8h\n    # 3600 s for the IPsec SA\n    lifetime=1h\n"
     },
     {
       "finding_id": "F008",
@@ -230,7 +237,8 @@
       "risk_score": 50,
       "explanation": "Without anti-replay protection, an attacker can capture packets and send them again.",
       "recommendation": "Enable the ESP anti-replay window.",
-      "reference": "RFC 4303"
+      "reference": "RFC 4303",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F008 (ReplayProtection)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was: ESP sequence numbers went backwards in the capture, so anti-replay looks disabled\n    # 0 disables anti-replay; values above 32 need the kernel-netlink backend\n    replay_window=32\n"
     },
     {
       "finding_id": "F009",
@@ -241,7 +249,8 @@
       "risk_score": 50,
       "explanation": "The peer identity is sent unencrypted, so eavesdroppers can see who is connecting.",
       "recommendation": "Use IKEv2, which encrypts peer identities.",
-      "reference": "RFC 7296"
+      "reference": "RFC 7296",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F009 (MetadataExposure)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # IKEv2 encrypts the identity payloads\n    keyexchange=ikev2\n    # aggressive mode sends identities in the clear\n    aggressive=no\n"
     },
     {
       "finding_id": "F010",
@@ -252,7 +261,8 @@
       "risk_score": 50,
       "explanation": "This cryptographic suite is not on the approved list, so the connection does not meet compliance rules.",
       "recommendation": "Use a NIST-approved suite, such as AES-256-GCM with SHA-256 and DH group 19 or 20.",
-      "reference": "NIST SP 800-77r1"
+      "reference": "NIST SP 800-77r1",
+      "remediation_snippet": "# strongSwan ipsec.conf: fix for F010 (Compliance)\n# Session S1, 10.0.0.1 <-> 203.0.113.9. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    keyexchange=ikev2\n    # was (observed): ike=3des-md5-modp1024\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    esp=aes256gcm16-ecp256!\n"
     }
   ],
   "sessions": [
@@ -286,6 +296,12 @@
         "bytes_total": 6000,
         "upstream_ratio": 0.5
       }
+    }
+  ],
+  "remediation_config": [
+    {
+      "session_id": "S1",
+      "snippet": "# strongSwan ipsec.conf: all fixes for session S1, 10.0.0.1 <-> 203.0.113.9\n# Addresses F001, F002, F003, F004, F005, F006, F007, F008, F009, F010. Merge into that peer's existing conn section.\nconn session-S1\n    # was (observed): keyexchange=ikev1\n    # required: AES-GCM IKE proposals are only supported with IKEv2\n    # IKEv1 is deprecated (RFC 9395)\n    # IKEv2 encrypts the identity payloads\n    keyexchange=ikev2\n    # was (observed): aggressive=yes\n    # keeps IKEv1 peers in main mode during the migration\n    # aggressive mode sends identities in the clear\n    aggressive=no\n    # was (observed): ike=3des-md5-modp1024\n    # if this peer must stay on IKEv1 for now: ike=aes256-sha256-ecp256!\n    ike=aes256gcm16-prfsha256-ecp256!\n    # the DH group in the ESP proposal also turns on PFS\n    # was (observed): no DH group in the ESP proposal, so no PFS\n    # adding a DH group to the ESP proposal enables PFS on every rekey\n    esp=aes256gcm16-ecp256!\n    # was (observed): pre-shared key (authby=secret)\n    leftauth=pubkey\n    rightauth=pubkey\n    # this gateway's certificate in /etc/ipsec.d/certs/\n    leftcert=gatewayCert.pem\n    # set to the subject of the peer's certificate\n    # then remove this peer's PSK line from /etc/ipsec.secrets\n    rightid=\"CN=peer.example.org\"\n    # was (observed): ikelifetime=172800s\n    # 28800 s for the IKE SA\n    ikelifetime=8h\n    # 3600 s for the IPsec SA\n    lifetime=1h\n    # was: ESP sequence numbers went backwards in the capture, so anti-replay looks disabled\n    # 0 disables anti-replay; values above 32 need the kernel-netlink backend\n    replay_window=32\n"
     }
   ]
 }
