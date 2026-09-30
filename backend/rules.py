@@ -10,6 +10,8 @@ engine reports what it can see, not what it guesses.
 
 import re
 
+import config
+
 SEVERITIES = ("Critical", "High", "Medium", "Low")
 
 CATEGORIES = (
@@ -60,8 +62,6 @@ WEAK_DH_GROUPS = {
     23: ("Medium", "Weak Diffie-Hellman group negotiated: group 23 (2048-bit MODP with 224-bit POS)"),
 }
 
-LIFETIME_MAX = 86400
-LIFETIME_MIN = 300
 
 
 def _norm(value):
@@ -261,22 +261,23 @@ def evaluate_session(session, builder):
 
     # --- Lifetime ----------------------------------------------------------
     if isinstance(lifetime, (int, float)) and not isinstance(lifetime, bool):
-        if lifetime > LIFETIME_MAX:
+        maximum, minimum = config.SA_LIFETIME_MAX_SECONDS, config.SA_LIFETIME_MIN_SECONDS
+        if lifetime > maximum:
             builder.add(
                 sid,
                 "Lifetime",
                 "SA lifetime exceeds the recommended maximum: %ds (> %ds)"
-                % (int(lifetime), LIFETIME_MAX),
+                % (int(lifetime), maximum),
                 "Low",
                 "IKE SA lifetime attribute decoded as %d seconds for session %s"
                 % (int(lifetime), peer),
             )
-        elif lifetime < LIFETIME_MIN:
+        elif lifetime < minimum:
             builder.add(
                 sid,
                 "Lifetime",
                 "SA lifetime below the recommended minimum: %ds (< %ds)"
-                % (int(lifetime), LIFETIME_MIN),
+                % (int(lifetime), minimum),
                 "Low",
                 "IKE SA lifetime attribute decoded as %d seconds for session %s; "
                 "excessive rekeying destabilises the tunnel" % (int(lifetime), peer),

@@ -7,3 +7,6 @@ env/
 .streamlit/secrets.toml
 .DS_Store
 ai_engine_SUBSTITUTE_backup/
+
+# local secrets; see .env.example
+.env

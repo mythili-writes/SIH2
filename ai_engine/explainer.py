@@ -13,10 +13,13 @@ import sys
 
 import requests
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:  # also works when this file is run as a script
+    sys.path.insert(0, _REPO_ROOT)
+
+import config  # noqa: E402  (repo-root config.py: the single source of settings)
+
 API_URL = "https://api.anthropic.com/v1/messages"
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
-MAX_TOKENS = 2000
-TIMEOUT_SECONDS = 20
 
 FIELDS = ("explanation", "recommendation", "reference")
 PROMPT_KEYS = ("finding_id", "category", "issue", "severity", "evidence")
@@ -189,6 +192,11 @@ def rule_explanation(finding):
     }
 
 
+def _model_name():
+    """The Claude model to call: ANTHROPIC_MODEL if set, else config.LLM_DEFAULT_MODEL."""
+    return os.environ.get("ANTHROPIC_MODEL") or config.LLM_DEFAULT_MODEL
+
+
 def _llm_enabled():
     return bool(os.environ.get("ANTHROPIC_API_KEY")) and os.environ.get("AI_OFFLINE") != "1"
 
@@ -208,12 +216,12 @@ def _ask_llm(findings):
             "content-type": "application/json",
         },
         json={
-            "model": os.environ.get("ANTHROPIC_MODEL") or DEFAULT_MODEL,
-            "max_tokens": MAX_TOKENS,
+            "model": _model_name(),
+            "max_tokens": config.LLM_MAX_TOKENS,
             "system": SYSTEM_PROMPT,
             "messages": [{"role": "user", "content": USER_PROMPT + json.dumps(slim, indent=2)}],
         },
-        timeout=TIMEOUT_SECONDS,
+        timeout=config.LLM_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
 

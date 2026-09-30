@@ -17,12 +17,12 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+import config  # noqa: E402
 from ai_engine import scorer  # noqa: E402
 from ai_engine.main import run as run_ai_engine  # noqa: E402
 from backend.main import analyze as run_backend  # noqa: E402
 
 SAMPLE_DIR = os.path.join(_ROOT, "sample_data")
-TRAINING_REPORT = os.path.join(_ROOT, "ai_engine", "models", "training_report.json")
 
 SEVERITY_ORDER = ("Critical", "High", "Medium", "Low")
 
@@ -114,7 +114,7 @@ def model_card():
     a stale hard-coded accuracy figure.
     """
     try:
-        with open(TRAINING_REPORT, encoding="utf-8") as fh:
+        with open(config.TRAFFIC_REPORT_PATH, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError):
         return None

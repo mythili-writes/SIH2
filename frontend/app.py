@@ -18,6 +18,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+import config  # noqa: E402
 from frontend.pipeline import (  # noqa: E402
     SCOPE_NOTE,
     build_executive_pdf,
@@ -54,8 +55,6 @@ SEQ_INK = ["#0b0b0b", "#0b0b0b", "#0b0b0b", "#ffffff", "#ffffff"]
 
 SEVERITY_ORDER = ["Critical", "High", "Medium", "Low"]
 
-# Lower bound of each risk band on the 0-100 scale (see ai_engine/scorer.py).
-RISK_BANDS = [(35, "Medium"), (60, "High"), (80, "Critical")]
 
 CSS = """
 <style>
@@ -185,7 +184,7 @@ def hero(report):
     colour = STATUS.get(level, "#52514e")
 
     ticks = '<span class="first" style="left:0%">0</span>'
-    for edge, name in RISK_BANDS:
+    for name, edge in sorted(config.RISK_LEVEL_THRESHOLDS, key=lambda band: band[1]):
         ticks += '<span style="left:%d%%">%d %s</span>' % (edge, edge, name.lower())
     ticks += '<span class="last" style="left:100%">100</span>'
 

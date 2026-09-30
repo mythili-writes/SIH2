@@ -14,16 +14,17 @@ import os
 import sys
 import warnings
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:  # also works when this file is run as a script
+    sys.path.insert(0, _REPO_ROOT)
+
+import config  # noqa: E402  (repo-root config.py: the single source of settings)
+
 FEATURES = ["packet_count", "avg_packet_size", "min_packet_size", "max_packet_size",
             "avg_inter_arrival_ms", "duration_seconds", "bytes_total", "upstream_ratio"]
 CLASSES = ["VoIP", "WhatsApp", "Email", "Web Browsing", "ICMP", "Video Streaming", "File Transfer"]
 
-MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
-MODEL_PATH = os.path.join(MODEL_DIR, "traffic_model.joblib")
-DATASET_PATH = os.path.join(MODEL_DIR, "synthetic_dataset.csv")
-REPORT_PATH = os.path.join(MODEL_DIR, "training_report.json")
-
-MIN_CONFIDENCE = 0.4
+# Artifact paths and the "Unknown" confidence threshold come from config.py.
 RULE_CONFIDENCE = 0.5
 MAX_PACKET_SIZE = 1500
 MIN_PACKET_SIZE = 40
@@ -174,8 +175,8 @@ def train(extra_csv=None):
         print(f"Added {len(extra)} row(s) from {extra_csv}.")
         rows += extra
 
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    with open(DATASET_PATH, "w", newline="", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(config.TRAFFIC_MODEL_PATH), exist_ok=True)
+    with open(config.TRAFFIC_DATASET_PATH, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FEATURES + ["traffic_type"])
         writer.writeheader()
         writer.writerows(rows)
@@ -196,7 +197,7 @@ def train(extra_csv=None):
     print(classification_report(y_test, y_pred, labels=CLASSES, digits=3, zero_division=0))
     _print_confusion_matrix(matrix)
 
-    joblib.dump(model, MODEL_PATH, compress=3)
+    joblib.dump(model, config.TRAFFIC_MODEL_PATH, compress=3)
     training_report = {
         "accuracy": round(float(accuracy), 4),
         "per_class": {
@@ -216,10 +217,10 @@ def train(extra_csv=None):
         "sklearn_version": sklearn.__version__,
         "note": TRAINING_NOTE,
     }
-    with open(REPORT_PATH, "w", encoding="utf-8") as f:
+    with open(config.TRAFFIC_REPORT_PATH, "w", encoding="utf-8") as f:
         json.dump(training_report, f, indent=2)
 
-    print(f"\nSaved {MODEL_PATH}")
+    print(f"\nSaved {config.TRAFFIC_MODEL_PATH}")
     return model
 
 
@@ -235,7 +236,7 @@ def load_model():
         with warnings.catch_warnings():
             # A model saved by another scikit-learn version can load but predict wrongly; retrain instead.
             warnings.simplefilter("error", InconsistentVersionWarning)
-            return joblib.load(MODEL_PATH)
+            return joblib.load(config.TRAFFIC_MODEL_PATH)
     except FileNotFoundError:
         print("Warning: traffic model not found; training a new one.", file=sys.stderr)
     except Exception as exc:
@@ -333,7 +334,7 @@ def predict_sessions(sessions):
         if rankings is not None:
             ranking = rankings[index]
             best_type, confidence = ranking[0]
-            predicted = best_type if confidence >= MIN_CONFIDENCE else "Unknown"
+            predicted = best_type if confidence >= config.TRAFFIC_MIN_CONFIDENCE else "Unknown"
             top = [{"type": t, "probability": round(p, 2)} for t, p in ranking[:3]]
         else:
             predicted = _rule_type(values)

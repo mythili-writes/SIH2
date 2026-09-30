@@ -4,8 +4,15 @@ Usage: python ai_engine/scorer.py <analysis.json>
 """
 
 import json
+import os
 import sys
 from statistics import mean
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:  # also works when this file is run as a script
+    sys.path.insert(0, _REPO_ROOT)
+
+import config  # noqa: E402  (repo-root config.py: the single source of settings)
 
 SEVERITY_SCORE = {"Critical": 95, "High": 75, "Medium": 50, "Low": 25}
 DEFAULT_SCORE = 25
@@ -57,16 +64,15 @@ def overall_risk(findings):
     severe_count = sum(1 for f in findings if f.get("severity") in ("Critical", "High"))
     raw = 0.6 * max(scores) + 0.4 * mean(scores) + min(15, 3 * severe_count)
     score = max(0, min(100, int(round(raw))))
+    return score, risk_level(score)
 
-    if score >= 80:
-        level = "Critical"
-    elif score >= 60:
-        level = "High"
-    elif score >= 35:
-        level = "Medium"
-    else:
-        level = "Low"
-    return score, level
+
+def risk_level(score):
+    """Map a 0-100 score to Critical/High/Medium/Low using config.RISK_LEVEL_THRESHOLDS."""
+    for level, threshold in config.RISK_LEVEL_THRESHOLDS:
+        if score >= threshold:
+            return level
+    return "Low"
 
 
 def ai_confidence(sessions, traffic_confidences=None):
