@@ -3,11 +3,18 @@
 # backend: pcap parsing
 scapy>=2.5.0
 
+# ai_engine: traffic classifier. scikit-learn must match the version that saved
+# ai_engine/models/traffic_model.joblib; any other version makes the engine
+# discard the shipped model and retrain it on first use.
+scikit-learn==1.7.2
+numpy
+joblib
+
+# ai_engine: optional Claude explanations (only used when ANTHROPIC_API_KEY is set)
+requests
+
 # frontend: dashboard
 streamlit>=1.38.0
 
 # frontend: executive report PDF export (optional - JSON download works without it)
 fpdf2>=2.7.0
-
-# ai_engine: only used when ANTHROPIC_API_KEY is set; --offline needs nothing
-anthropic>=0.40.0
