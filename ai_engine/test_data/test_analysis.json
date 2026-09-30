@@ -1,123 +1,157 @@
 {
   "file_name": "test_capture.pcap",
-  "total_packets": 48,
+  "total_packets": 1020,
   "ip_version": "IPv4",
   "packet_summary": {
-    "ike_packets": 6,
-    "esp_packets": 40,
+    "ike_packets": 10,
+    "esp_packets": 1010,
     "ah_packets": 0,
-    "other_packets": 2
+    "other_packets": 0
   },
   "sessions": [
     {
-      "session_id": "S1",
-      "src_ip": "192.168.10.1",
-      "dst_ip": "203.0.113.50",
+      "session_id": 1,
+      "src_ip": "10.0.0.1",
+      "dst_ip": "10.0.0.2",
+      "ipsec_protocol": "ESP",
       "protocol": "IKEv1",
       "exchange_mode": "Aggressive",
+      "ipsec_mode": "Tunnel",
       "encryption": "3DES",
+      "authentication": "HMAC-MD5",
       "hash": "MD5",
       "dh_group": 2,
+      "key_exchange": "Diffie-Hellman",
       "auth_method": "Pre-Shared Key",
-      "lifetime_seconds": 172800,
+      "lifetime_seconds": 86400,
       "pfs_enabled": false,
+      "replay_protection": false,
       "nat_traversal": false,
       "identity_exposed": true,
-      "ipsec_mode": "Tunnel",
-      "replay_protection": false,
-      "confidence": 0.82,
+      "confidence": 0.9,
       "traffic_features": {
-        "packet_count": 40,
-        "avg_packet_size": 148.5,
-        "min_packet_size": 134,
-        "max_packet_size": 166,
-        "avg_inter_arrival_ms": 20.0,
-        "duration_seconds": 0.78,
-        "bytes_total": 5940,
+        "packet_count": 110,
+        "avg_packet_size": 160,
+        "min_packet_size": 96,
+        "max_packet_size": 220,
+        "avg_inter_arrival_ms": 20,
+        "duration_seconds": 2.5,
+        "bytes_total": 17600,
         "upstream_ratio": 0.5
+      }
+    },
+    {
+      "session_id": 2,
+      "src_ip": "10.0.0.3",
+      "dst_ip": "10.0.0.4",
+      "ipsec_protocol": "ESP",
+      "protocol": "IKEv2",
+      "exchange_mode": "Main",
+      "ipsec_mode": "Tunnel",
+      "encryption": "AES-256-CBC",
+      "authentication": "HMAC-SHA256",
+      "hash": "SHA256",
+      "dh_group": 14,
+      "key_exchange": "Diffie-Hellman",
+      "auth_method": "Pre-Shared Key",
+      "lifetime_seconds": 100000,
+      "pfs_enabled": true,
+      "replay_protection": true,
+      "nat_traversal": false,
+      "identity_exposed": false,
+      "confidence": 0.85,
+      "traffic_features": {
+        "packet_count": 900,
+        "avg_packet_size": 1200,
+        "min_packet_size": 200,
+        "max_packet_size": 1420,
+        "avg_inter_arrival_ms": 8,
+        "duration_seconds": 7.2,
+        "bytes_total": 1080000,
+        "upstream_ratio": 0.05
       }
     }
   ],
   "findings": [
     {
       "finding_id": "F001",
-      "session_id": "S1",
+      "session_id": 1,
       "category": "Encryption",
-      "issue": "Weak encryption algorithm negotiated: 3DES",
+      "issue": "3DES is deprecated",
       "severity": "High",
-      "evidence": "IKE transform payload advertised ENCR_3DES for session 192.168.10.1 -> 203.0.113.50"
+      "evidence": "encryption=3DES"
     },
     {
       "finding_id": "F002",
-      "session_id": "S1",
+      "session_id": 1,
       "category": "Hash",
-      "issue": "Weak integrity/hash algorithm negotiated: MD5",
+      "issue": "MD5 is cryptographically broken",
       "severity": "High",
-      "evidence": "IKE transform payload advertised AUTH_HMAC_MD5 for session S1"
+      "evidence": "hash=MD5"
     },
     {
       "finding_id": "F003",
-      "session_id": "S1",
+      "session_id": 1,
       "category": "KeyExchange",
-      "issue": "Weak Diffie-Hellman group negotiated: group 2 (1024-bit MODP)",
+      "issue": "DH group 2 (1024-bit) is too weak",
       "severity": "High",
-      "evidence": "IKE key exchange payload indicated DH group 2 for session S1"
+      "evidence": "dh_group=2"
     },
     {
       "finding_id": "F004",
-      "session_id": "S1",
+      "session_id": 1,
       "category": "Protocol",
-      "issue": "IKEv1 Aggressive Mode in use",
-      "severity": "High",
-      "evidence": "ISAKMP header exchange type 4 (Aggressive) observed on UDP/500"
+      "issue": "IKEv1 is deprecated",
+      "severity": "Medium",
+      "evidence": "protocol=IKEv1"
     },
     {
       "finding_id": "F005",
-      "session_id": "S1",
-      "category": "Authentication",
-      "issue": "Pre-Shared Key authentication in use",
-      "severity": "Medium",
-      "evidence": "IKE transform payload advertised auth method 1 (Pre-Shared Key)"
+      "session_id": 1,
+      "category": "Protocol",
+      "issue": "IKEv1 Aggressive Mode exposes the PSK hash",
+      "severity": "High",
+      "evidence": "exchange_mode=Aggressive"
     },
     {
       "finding_id": "F006",
-      "session_id": "S1",
-      "category": "PFS",
-      "issue": "Perfect Forward Secrecy is disabled",
+      "session_id": 1,
+      "category": "Authentication",
+      "issue": "Pre-Shared Key is weaker than certificate authentication",
       "severity": "Medium",
-      "evidence": "No KE payload observed in quick mode exchange for session S1"
+      "evidence": "auth_method=Pre-Shared Key"
     },
     {
       "finding_id": "F007",
-      "session_id": "S1",
-      "category": "ReplayProtection",
-      "issue": "Anti-replay protection appears disabled",
+      "session_id": 1,
+      "category": "PFS",
+      "issue": "Perfect Forward Secrecy is disabled",
       "severity": "Medium",
-      "evidence": "ESP sequence numbers did not increase monotonically across 40 packets"
+      "evidence": "pfs_enabled=false"
     },
     {
       "finding_id": "F008",
-      "session_id": "S1",
+      "session_id": 1,
       "category": "MetadataExposure",
-      "issue": "Peer identity transmitted without encryption",
+      "issue": "Identity is sent in clear",
       "severity": "Medium",
-      "evidence": "ID payload present in unencrypted aggressive mode message 1"
+      "evidence": "identity_exposed=true"
     },
     {
       "finding_id": "F009",
-      "session_id": "S1",
-      "category": "Lifetime",
-      "issue": "SA lifetime outside recommended range: 172800s",
+      "session_id": 2,
+      "category": "Encryption",
+      "issue": "AES-256-CBC used instead of an AEAD cipher like AES-GCM",
       "severity": "Low",
-      "evidence": "IKE SA lifetime attribute decoded as 172800 seconds (> 86400)"
+      "evidence": "encryption=AES-256-CBC"
     },
     {
       "finding_id": "F010",
-      "session_id": "S1",
-      "category": "Compliance",
-      "issue": "Negotiated cipher suite is not in the approved list",
-      "severity": "Medium",
-      "evidence": "Suite 3DES/MD5/DH2 does not meet the AES-GCM or AES-256 + SHA256 baseline"
+      "session_id": 2,
+      "category": "Lifetime",
+      "issue": "SA lifetime is over 86400 seconds",
+      "severity": "Low",
+      "evidence": "lifetime_seconds=100000"
     }
   ]
 }

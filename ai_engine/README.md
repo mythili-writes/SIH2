@@ -1,77 +1,76 @@
-# ai_engine
+# AI Engine
 
-Turns **Contract A** (the parser's analysis JSON) into **Contract B** (the scored,
-explained security report). Deterministic, offline-capable, no network required.
+Turns the parser's analysis JSON (**Contract A**) into the final report JSON (**Contract B**):
 
-## Interface
+- **Risk scoring** (`scorer.py`): a 0–100 risk score and level, an AI confidence score and a threat matrix.
+- **Explanations** (`explainer.py`): a plain-English explanation, recommendation and standard reference for every finding. It uses Claude if an API key is set and falls back to built-in rules otherwise.
+- **Traffic classification** (`traffic_model.py`): guesses what each encrypted session carries (VoIP, video, and so on) from packet sizes and timing only. The ESP payload is never read.
+- **Reports** (`report_builder.py`): an executive report, a technical report and a one-line summary.
+
+## Install
+
+```bash
+pip install -r ai_engine/requirements.txt
+```
+
+Tested with Python 3.13 and scikit-learn 1.9.0.
+
+## Command line
+
+Run from the repo root:
+
+```bash
+python ai_engine/main.py <analysis.json> <report.json> [--offline]
+```
+
+Example:
+
+```bash
+python ai_engine/main.py ai_engine/test_data/test_analysis.json ai_engine/test_data/test_report.json --offline
+python ai_engine/test_data/check_contract_b.py ai_engine/test_data/test_report.json
+```
+
+If the input file is missing or is not valid JSON, it prints an error and exits with code 1.
+
+## Using it from the frontend
 
 ```python
 from ai_engine.main import run
 
-report = run(analysis_dict, offline=True)   # -> Contract B dict
+report = run(analysis_dict)                # Contract B dict
+report = run(analysis_dict, offline=True)  # never calls the LLM
 ```
 
-```bash
-python ai_engine/main.py analysis.json report.json --offline
-```
+The repo root must be on `sys.path` (it is when you start Python from the repo root). If one step fails, `run()` prints a warning and uses a safe default for that step, so it still returns a valid Contract B report. It does not modify the input dict.
 
-`--offline` forces the rule-based path. Without it, the engine uses the Anthropic
-API **only if** `ANTHROPIC_API_KEY` is set, and only to rewrite three narrative
-fields (`summary`, `executive_report.business_impact`, `executive_report.headline`).
-Every score, finding, classification and matrix cell is computed locally, so the
-report shape never depends on the model being reachable. Any API failure silently
-falls back to the rule-based narrative and sets `mode: "offline"`.
+## `--offline` and the LLM
 
-## Contract A (input)
-
-```
-file_name, total_packets, ip_version
-packet_summary { ike_packets, esp_packets, ah_packets, other_packets }
-sessions[] { session_id, src_ip, dst_ip, protocol, exchange_mode, encryption,
-             hash, dh_group, auth_method, lifetime_seconds, pfs_enabled,
-             nat_traversal, identity_exposed, ipsec_mode, replay_protection,
-             confidence, traffic_features { packet_count, avg_packet_size,
-               min_packet_size, max_packet_size, avg_inter_arrival_ms,
-               duration_seconds, bytes_total, upstream_ratio } }
-findings[] { finding_id, session_id, category, issue, severity, evidence }
-```
-
-Unknown values are the string `"Unknown"` (or `null` for booleans/numbers).
-Keys are never omitted.
-
-## Contract B (output)
-
-```
-schema_version, report_id, generated_at, source_file, mode
-overall_risk_score (0-100), risk_level, ai_confidence_score (0-1), summary
-severity_breakdown { Critical, High, Medium, Low }
-findings[]           + explanation, recommendation, cvss_estimate, references[]
-sessions[]           + session_risk_score, session_risk_level, finding_count
-traffic_analysis[]   { predicted_traffic_type, traffic_confidence,
-                       top_predictions[], metadata_inference{} }
-threat_matrix        { axes{}, entries[], cells[] }
-executive_report     { headline, key_risks[], business_impact,
-                       recommended_actions[], compliance_posture{}, next_steps[] }
-technical_report     { methodology, environment{}, findings_detail[],
-                       session_details[], remediation_plan[], detection_notes[],
-                       limitations[], appendix{} }
-```
-
-## Scoring
-
-Severity weights are Critical 40 / High 22 / Medium 10 / Low 3. Repeats of the
-same severity decay at 0.55^n, so six Medium findings never outrank one Critical.
-The raw total is squashed to 0-100 with `100 * (1 - e^(-raw/45))`. Bands:
-Critical >= 75, High >= 50, Medium >= 25, Low below that.
-
-## Modules
-
-| File | Role |
+| Setting | Effect |
 |---|---|
-| `main.py` | orchestration, scoring, report assembly, CLI |
-| `contracts.py` | severities, categories, weights, risk bands |
-| `knowledge.py` | per-category explanation / remediation / references / threat placement |
-| `traffic.py` | metadata-only traffic classification and inference |
+| `ANTHROPIC_API_KEY` | If set, explanations come from one Claude API call. If the call fails (no internet, bad key, timeout), the built-in rules are used. |
+| `ANTHROPIC_MODEL` | Optional. The default is `claude-haiku-4-5-20251001`. |
+| `AI_OFFLINE=1`, `--offline` or `offline=True` | Always use the built-in rules, even if a key is set. |
 
-`test_data/test_analysis.json` is a canonical Contract A input;
-`test_data/test_report.json` is the Contract B output it produces.
+**Never commit the API key.** Set it in your shell. `.env` is in `ai_engine/.gitignore`, but the code does not read `.env` itself, so you have to load it into your environment.
+
+## Traffic model
+
+- **Model:** Random Forest (150 trees, balanced class weights), saved to `models/traffic_model.joblib`.
+- **Features (8):** packet count, average, minimum and maximum packet size, average inter-arrival time, duration, total bytes and upstream ratio.
+- **Classes (7):** VoIP, WhatsApp, Email, Web Browsing, ICMP, Video Streaming and File Transfer. A session is reported as `Unknown` if the top probability is below 0.4 or there is no traffic data.
+- **Training data:** 2,100 synthetic sessions (300 per class) with realistic ESP sizes and timing, noise, overlap between classes, and captures that start or end mid-session. Saved to `models/synthetic_dataset.csv`.
+- **Accuracy:** 94.05% on a stratified 20% held-out split. See `models/training_report.json` for full metrics.
+
+| Class | Precision | Recall | F1 |
+|---|---|---|---|
+| VoIP | 0.97 | 0.98 | 0.98 |
+| WhatsApp | 0.86 | 0.93 | 0.90 |
+| Email | 0.98 | 0.88 | 0.93 |
+| Web Browsing | 0.90 | 0.93 | 0.92 |
+| ICMP | 0.95 | 0.92 | 0.93 |
+| Video Streaming | 0.95 | 0.95 | 0.95 |
+| File Transfer | 0.98 | 0.98 | 0.98 |
+
+These numbers are measured on synthetic data. Accuracy on real captures has not been measured yet.
+
+Retrain with `python ai_engine/traffic_model.py train [extra.csv]`. The optional CSV adds labelled rows with the 8 feature columns plus `traffic_type`. If the model file is missing or was saved by a different scikit-learn version, it retrains automatically. If the model can't be used at all, simple size and timing rules take over.
