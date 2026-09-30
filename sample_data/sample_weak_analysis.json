@@ -13,26 +13,22 @@
       "session_id": "S1",
       "src_ip": "10.0.0.1",
       "dst_ip": "203.0.113.9",
+      "ipsec_protocol": "ESP",
       "protocol": "IKEv1",
       "exchange_mode": "Aggressive",
+      "ipsec_mode": "Tunnel",
       "encryption": "3DES-CBC",
+      "authentication": "HMAC-MD5",
       "hash": "MD5",
       "dh_group": 2,
+      "key_exchange": "Diffie-Hellman",
       "auth_method": "Pre-Shared Key",
       "lifetime_seconds": 172800,
       "pfs_enabled": false,
+      "replay_protection": false,
       "nat_traversal": false,
       "identity_exposed": true,
-      "ipsec_mode": "Tunnel",
-      "replay_protection": false,
-      "ike_packet_count": 5,
-      "esp_packet_count": 40,
-      "ah_packet_count": 0,
-      "exchanges_observed": [
-        "Aggressive",
-        "Quick Mode"
-      ],
-      "is_site_to_site": true,
+      "confidence": 1.0,
       "traffic_features": {
         "packet_count": 40,
         "avg_packet_size": 150.0,
@@ -42,8 +38,7 @@
         "duration_seconds": 0.779999,
         "bytes_total": 6000,
         "upstream_ratio": 0.5
-      },
-      "confidence": 1.0
+      }
     }
   ],
   "findings": [
@@ -123,7 +118,7 @@
       "finding_id": "F010",
       "session_id": "S1",
       "category": "Compliance",
-      "issue": "Negotiated cipher suite is not in the approved list",
+      "issue": "Negotiated cipher suite is not compliant with the approved baseline",
       "severity": "Medium",
       "evidence": "Suite 3DES-CBC/MD5/DH2 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher 3DES-CBC is outside the approved AES family"
     }

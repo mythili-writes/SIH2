@@ -13,27 +13,22 @@
       "session_id": "S1",
       "src_ip": "192.168.50.1",
       "dst_ip": "198.51.100.20",
+      "ipsec_protocol": "ESP",
       "protocol": "IKEv2",
       "exchange_mode": "IKE_SA_INIT",
+      "ipsec_mode": "Tunnel",
       "encryption": "AES-256-GCM",
+      "authentication": "AEAD",
       "hash": "SHA256",
       "dh_group": 14,
+      "key_exchange": "Diffie-Hellman",
       "auth_method": "RSA Digital Signature",
       "lifetime_seconds": null,
       "pfs_enabled": true,
+      "replay_protection": true,
       "nat_traversal": false,
       "identity_exposed": false,
-      "ipsec_mode": "Tunnel",
-      "replay_protection": true,
-      "ike_packet_count": 6,
-      "esp_packet_count": 60,
-      "ah_packet_count": 0,
-      "exchanges_observed": [
-        "CREATE_CHILD_SA",
-        "IKE_AUTH",
-        "IKE_SA_INIT"
-      ],
-      "is_site_to_site": true,
+      "confidence": 0.92,
       "traffic_features": {
         "packet_count": 60,
         "avg_packet_size": 1223.5,
@@ -43,8 +38,7 @@
         "duration_seconds": 0.177001,
         "bytes_total": 73410,
         "upstream_ratio": 0.9865
-      },
-      "confidence": 0.92
+      }
     }
   ],
   "findings": []

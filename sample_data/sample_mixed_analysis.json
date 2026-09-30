@@ -13,26 +13,22 @@
       "session_id": "S1",
       "src_ip": "2001:db8::1",
       "dst_ip": "2001:db8:100::20",
+      "ipsec_protocol": "ESP",
       "protocol": "IKEv1",
       "exchange_mode": "Main",
+      "ipsec_mode": "Transport",
       "encryption": "AES-128-CBC",
+      "authentication": "HMAC-SHA1",
       "hash": "SHA1",
       "dh_group": 5,
+      "key_exchange": "Diffie-Hellman",
       "auth_method": "RSA Digital Signature",
       "lifetime_seconds": 120,
       "pfs_enabled": true,
+      "replay_protection": true,
       "nat_traversal": false,
       "identity_exposed": false,
-      "ipsec_mode": "Transport",
-      "replay_protection": true,
-      "ike_packet_count": 6,
-      "esp_packet_count": 34,
-      "ah_packet_count": 0,
-      "exchanges_observed": [
-        "Main",
-        "Quick Mode"
-      ],
-      "is_site_to_site": true,
+      "confidence": 1.0,
       "traffic_features": {
         "packet_count": 34,
         "avg_packet_size": 686.47,
@@ -42,8 +38,7 @@
         "duration_seconds": 5.881814,
         "bytes_total": 23340,
         "upstream_ratio": 0.353
-      },
-      "confidence": 1.0
+      }
     }
   ],
   "findings": [
@@ -99,7 +94,7 @@
       "finding_id": "F007",
       "session_id": "S1",
       "category": "Compliance",
-      "issue": "Negotiated cipher suite is not in the approved list",
+      "issue": "Negotiated cipher suite is not compliant with the approved baseline",
       "severity": "Medium",
       "evidence": "Suite AES-128-CBC/SHA1/DH5 fails the AES-GCM or AES-256 + SHA-256 baseline: cipher AES-128-CBC does not meet the AES-256 minimum for non-AEAD modes"
     }
