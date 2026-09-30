@@ -134,6 +134,41 @@ IKEV2_INTEG = {
     14: "SHA512",
 }
 
+# Contract A "authentication": the ESP/AH integrity algorithm, named like the
+# canonical test data ("HMAC-MD5", "HMAC-SHA256").
+IPSEC_INTEGRITY_NAME = {
+    "HMAC-MD5": "HMAC-MD5",
+    "HMAC-SHA": "HMAC-SHA1",
+    "HMAC-SHA2-256": "HMAC-SHA256",
+    "HMAC-SHA2-384": "HMAC-SHA384",
+    "HMAC-SHA2-512": "HMAC-SHA512",
+    "AES-XCBC-MAC": "AES-XCBC",
+}
+
+IKEV2_INTEG_NAME = {
+    1: "HMAC-MD5",
+    2: "HMAC-SHA1",
+    3: "DES-MAC",
+    4: "KPDK-MD5",
+    5: "AES-XCBC",
+    6: "HMAC-MD5",
+    7: "HMAC-SHA1",
+    8: "AES-CMAC",
+    9: "AES-128-GMAC",
+    10: "AES-192-GMAC",
+    11: "AES-256-GMAC",
+    12: "HMAC-SHA256",
+    13: "HMAC-SHA384",
+    14: "HMAC-SHA512",
+}
+
+# An AEAD cipher (AES-GCM, AES-CCM, ChaCha20-Poly1305) carries its own integrity
+# check, so no separate integrity transform is negotiated.
+AEAD_INTEGRITY = "AEAD"
+
+# DH groups on elliptic curves; every other known group is classic MODP.
+ECP_GROUPS = {19, 20, 21, 25, 26, 27, 28, 29, 30, 31, 32}
+
 NOTIFY_USE_TRANSPORT_MODE = 16391
 NOTIFY_NAT_DETECTION = (16388, 16389)
 
@@ -311,6 +346,8 @@ def _parse_ikev1(raw, state, pkt_meta):
                 if not isinstance(proposal, ISAKMP_payload_Proposal):
                     continue
                 proto = int(getattr(proposal, "proto", 1) or 1)
+                if proto in (2, 3):  # PROTO_IPSEC_AH / PROTO_IPSEC_ESP
+                    state["negotiated_ipsec"].add("AH" if proto == 2 else "ESP")
                 for trans in _walk(getattr(proposal, "trans", None)):
                     if not isinstance(trans, ISAKMP_payload_Transform):
                         continue
@@ -370,8 +407,10 @@ def _apply_ikev1_phase2(state, attrs):
             state["ipsec_mode"] = "Tunnel"
 
     alg = attrs.get("AuthenticationAlgorithm")
-    if alg is not None and state["hash"] == UNKNOWN:
-        state["hash"] = IPSEC_AUTH_ALG.get(str(alg), str(alg).upper())
+    if alg is not None:
+        state["authentication"] = IPSEC_INTEGRITY_NAME.get(str(alg), str(alg).upper())
+        if state["hash"] == UNKNOWN:
+            state["hash"] = IPSEC_AUTH_ALG.get(str(alg), str(alg).upper())
 
     grp = attrs.get("GroupDesc")
     if grp is not None:
@@ -448,6 +487,8 @@ def _parse_ikev2(raw, state, pkt_meta):
                 if not isinstance(proposal, ikev2.IKEv2_Proposal):
                     continue
                 proto = int(getattr(proposal, "proto", 1) or 1)
+                if proto in (2, 3):  # AH / ESP child SA
+                    state["negotiated_ipsec"].add("AH" if proto == 2 else "ESP")
                 _apply_ikev2_proposal(
                     state, proposal, is_child=(proto in (2, 3) or child_sa)
                 )
@@ -461,6 +502,8 @@ def _parse_ikev2(raw, state, pkt_meta):
 
 
 def _apply_ikev2_proposal(state, proposal, is_child):
+    child_integrity = None
+    child_aead = False
     for trans in _walk(getattr(proposal, "trans", None)):
         if not isinstance(trans, ikev2.IKEv2_Transform):
             continue
@@ -476,8 +519,11 @@ def _apply_ikev2_proposal(state, proposal, is_child):
             state["encryption"] = _ikev2_cipher_name(int(tid), klen)
             if int(tid) in IKEV2_AEAD:
                 state["aead"] = True
+                child_aead = child_aead or is_child
         elif ttype == 3:  # Integrity
             state["hash"] = IKEV2_INTEG.get(int(tid), UNKNOWN)
+            if is_child:
+                child_integrity = IKEV2_INTEG_NAME.get(int(tid), UNKNOWN)
         elif ttype == 2 and state["hash"] == UNKNOWN:
             # AEAD suites carry no integrity transform; fall back to the PRF.
             prf = ikev2.IKEv2TransformAlgorithms.get(2, {}).get(int(tid), "")
@@ -500,6 +546,13 @@ def _apply_ikev2_proposal(state, proposal, is_child):
                 state["dh_group"] = group
         elif ttype == 5:  # Extended sequence numbers
             state["esn"] = int(tid) == 1
+
+    # Only a child SA proposal describes the ESP/AH integrity algorithm; the IKE
+    # SA's own integrity transform protects IKE messages, not the data plane.
+    if child_integrity is not None:
+        state["authentication"] = child_integrity
+    elif child_aead:
+        state["authentication"] = AEAD_INTEGRITY
 
 
 # --------------------------------------------------------------------------
@@ -585,6 +638,29 @@ def _infer_mode_from_esp(records, explicit_mode):
     return UNKNOWN, False
 
 
+def _ipsec_protocol(state):
+    """ESP / AH / ESP+AH from the data plane, else from the negotiated proposal."""
+    seen = set()
+    if state["esp_records"]:
+        seen.add("ESP")
+    if state["ah_records"]:
+        seen.add("AH")
+    if not seen:
+        seen = set(state["negotiated_ipsec"])
+    if seen == {"ESP", "AH"}:
+        return "ESP+AH"
+    if len(seen) == 1:
+        return next(iter(seen))
+    return UNKNOWN
+
+
+def _key_exchange(dh_group):
+    """Name the key-exchange family for a DH group number."""
+    if not isinstance(dh_group, int) or isinstance(dh_group, bool):
+        return UNKNOWN
+    return "ECDH" if dh_group in ECP_GROUPS else "Diffie-Hellman"
+
+
 # --------------------------------------------------------------------------
 # confidence
 # --------------------------------------------------------------------------
@@ -630,6 +706,7 @@ def _new_state():
         "exchange_mode": UNKNOWN,
         "encryption": UNKNOWN,
         "hash": UNKNOWN,
+        "authentication": UNKNOWN,
         "dh_group": None,
         "auth_method": UNKNOWN,
         "lifetime_seconds": None,
@@ -644,6 +721,7 @@ def _new_state():
         "ah_records": [],
         "seq_by_spi": {},
         "exchanges": set(),
+        "negotiated_ipsec": set(),
         "identity_values": set(),
         "parse_errors": 0,
         "saw_quick_mode": False,
@@ -755,27 +833,27 @@ def parse_pcap(path):
         src_ip, dst_ip = (initiator, key[1] if key[0] == initiator else key[0]) \
             if initiator else (key[0], key[1])
 
+        # Key order follows the canonical Contract A (ai_engine/test_data).
         session = {
             "session_id": "S%d" % (index + 1),
             "src_ip": src_ip,
             "dst_ip": dst_ip,
+            "ipsec_protocol": _ipsec_protocol(state),
             "protocol": state["protocol"],
             "exchange_mode": state["exchange_mode"],
+            "ipsec_mode": mode,
             "encryption": state["encryption"],
+            "authentication": state["authentication"],
             "hash": state["hash"],
             "dh_group": state["dh_group"],
+            "key_exchange": _key_exchange(state["dh_group"]),
             "auth_method": state["auth_method"],
             "lifetime_seconds": state["lifetime_seconds"],
             "pfs_enabled": state["pfs_enabled"],
+            "replay_protection": replay,
             "nat_traversal": state["nat_traversal"],
             "identity_exposed": state["identity_exposed"],
-            "ipsec_mode": mode,
-            "replay_protection": replay,
-            "ike_packet_count": state["ike_packets"],
-            "esp_packet_count": len(state["esp_records"]),
-            "ah_packet_count": len(state["ah_records"]),
-            "exchanges_observed": sorted(state["exchanges"]),
-            "is_site_to_site": True,
+            "confidence": None,
             "traffic_features": _traffic_features(flows, initiator),
         }
         session["confidence"] = _confidence(session, state)

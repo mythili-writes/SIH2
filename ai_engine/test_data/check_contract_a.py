@@ -27,8 +27,11 @@ CATEGORIES = {
     "Encryption", "Hash", "KeyExchange", "Authentication", "Mode", "Lifetime", "PFS",
     "Protocol", "ReplayProtection", "MetadataExposure", "Compliance",
 }
-IPSEC_PROTOCOLS = {"ESP", "AH", "ESP+AH"}
-IP_VERSIONS = {"IPv4", "IPv6", "Mixed"}
+# "Unknown" follows the Contract A convention for values that cannot be determined:
+# an IKE-only session has no data plane to name, and a capture with no IP packets
+# has no IP version.
+IPSEC_PROTOCOLS = {"ESP", "AH", "ESP+AH", "Unknown"}
+IP_VERSIONS = {"IPv4", "IPv6", "Mixed", "Unknown"}
 
 
 def check_keys(obj, expected, where, errors):
